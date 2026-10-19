@@ -55,6 +55,9 @@ asks for data that the database does not contain. For example, the current
 schema includes `students.cgpa` and `examinations.marks`, but it has no
 attendance column. The CLI will not invent attendance data; it may explain the
 limitation and ask whether CGPA or examination marks would meet the request.
+Clarification results use three statuses: `clear` (ready to continue),
+`clarification_needed` (intent needs another answer), and `unsupported` (the
+schema cannot provide the requested data).
 
 Clear requests, such as `"Show all CSE students."`, can proceed without an
 unnecessary follow-up. To use another existing SQLite database:

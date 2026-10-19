@@ -1,0 +1,49 @@
+[1mdiff --git a/README.md b/README.md[m
+[1mindex 9e6a982..35102ac 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -55,6 +55,9 @@[m [masks for data that the database does not contain. For example, the current[m
+ schema includes `students.cgpa` and `examinations.marks`, but it has no[m
+ attendance column. The CLI will not invent attendance data; it may explain the[m
+ limitation and ask whether CGPA or examination marks would meet the request.[m
+[32m+[m[32mClarification results use three statuses: `clear` (ready to continue),[m
+[32m+[m[32m`clarification_needed` (intent needs another answer), and `unsupported` (the[m
+[32m+[m[32mschema cannot provide the requested data).[m
+ [m
+ Clear requests, such as `"Show all CSE students."`, can proceed without an[m
+ unnecessary follow-up. To use another existing SQLite database:[m
+[1mdiff --git a/scripts/generate_sql.py b/scripts/generate_sql.py[m
+[1mindex 3ca8911..29c7c86 100644[m
+[1m--- a/scripts/generate_sql.py[m
+[1m+++ b/scripts/generate_sql.py[m
+[36m@@ -82,9 +82,10 @@[m [mdef main() -> None:[m
+         sqlite3.Error,[m
+         OSError,[m
+         ValueError,[m
+[31m-        EOFError,[m
+     ) as error:[m
+         parser.error(str(error))[m
+[32m+[m[32m    except EOFError:[m
+[32m+[m[32m        parser.error("Input ended before clarification was resolved.")[m
+ [m
+     print([m
+         json.dumps([m
+[1mdiff --git a/tests/test_clarification_engine.py b/tests/test_clarification_engine.py[m
+[1mindex 30079aa..050d31b 100644[m
+[1m--- a/tests/test_clarification_engine.py[m
+[1m+++ b/tests/test_clarification_engine.py[m
+[36m@@ -380,11 +380,12 @@[m [mdef test_gemini_api_error_is_wrapped_and_propagates_from_clarification([m
+     assert "secret" not in str(error.value)[m
+ [m
+ [m
+[31m-def test_sql_generation_is_blocked_until_clarification_is_resolved(tmp_path):[m
+[32m+[m[32m@pytest.mark.parametrize("status", ["clarification_needed", "unsupported"])[m
+[32m+[m[32mdef test_sql_generation_is_blocked_until_clarification_is_resolved(tmp_path, status):[m
+     pending = analyze_question([m
+         "Show the best students.",[m
+         _database(tmp_path),[m
+[31m-        provider=_FakeProvider(_clarification_needed_response()),[m
+[32m+[m[32m        provider=_FakeProvider(_clarification_needed_response(status=status)),[m
+     )[m
+     sql_provider = _FakeProvider([m
+         json.dumps([m

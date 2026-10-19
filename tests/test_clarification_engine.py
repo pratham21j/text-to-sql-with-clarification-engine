@@ -380,11 +380,12 @@ def test_gemini_api_error_is_wrapped_and_propagates_from_clarification(
     assert "secret" not in str(error.value)
 
 
-def test_sql_generation_is_blocked_until_clarification_is_resolved(tmp_path):
+@pytest.mark.parametrize("status", ["clarification_needed", "unsupported"])
+def test_sql_generation_is_blocked_until_clarification_is_resolved(tmp_path, status):
     pending = analyze_question(
         "Show the best students.",
         _database(tmp_path),
-        provider=_FakeProvider(_clarification_needed_response()),
+        provider=_FakeProvider(_clarification_needed_response(status=status)),
     )
     sql_provider = _FakeProvider(
         json.dumps(

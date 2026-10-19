@@ -82,9 +82,10 @@ def main() -> None:
         sqlite3.Error,
         OSError,
         ValueError,
-        EOFError,
     ) as error:
         parser.error(str(error))
+    except EOFError:
+        parser.error("Input ended before clarification was resolved.")
 
     print(
         json.dumps(
