@@ -16,7 +16,7 @@ from text_to_sql.clarification_engine import (
 from text_to_sql.conversation_context import (
     answer_conversation_clarification,
     create_conversation,
-    generate_conversation_sql,
+    execute_conversation_query,
     process_user_question,
 )
 from text_to_sql.database import DEFAULT_DATABASE_PATH
@@ -26,14 +26,15 @@ from text_to_sql.llm_provider import (
     GeminiProviderError,
 )
 from text_to_sql.sql_generator import InvalidModelResponseError
+from text_to_sql.sql_executor import DEFAULT_MAX_ROWS
 from text_to_sql.sql_validator import SQLValidationError
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Clarify a question when needed, then generate a validated SQL "
-            "preview using the configured Gemini model."
+            "Clarify a question when needed, then execute a validated "
+            "read-only SQL query using the configured Gemini model."
         )
     )
     parser.add_argument("question", help="natural-language database question")
@@ -41,6 +42,12 @@ def main() -> None:
         "--database",
         type=Path,
         help="SQLite database file (defaults to data\\academic.db)",
+    )
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=DEFAULT_MAX_ROWS,
+        help=f"maximum number of returned rows (default: {DEFAULT_MAX_ROWS})",
     )
     arguments = parser.parse_args()
 
@@ -73,10 +80,11 @@ def main() -> None:
                 database_path,
                 provider=provider,
             )
-        sql_result = generate_conversation_sql(
+        query_result = execute_conversation_query(
             conversation,
             database_path,
             provider=provider,
+            max_rows=arguments.max_rows,
         )
     except (
         GeminiConfigurationError,
@@ -96,7 +104,8 @@ def main() -> None:
         json.dumps(
             {
                 "clarification": asdict(clarification),
-                "sql": asdict(sql_result),
+                "sql": asdict(query_result.sql),
+                "results": asdict(query_result.execution),
                 "conversation": conversation.to_dict(),
             },
             indent=2,

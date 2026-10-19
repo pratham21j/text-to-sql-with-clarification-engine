@@ -16,6 +16,12 @@ from text_to_sql.clarification_engine import (
 )
 from text_to_sql.database import DEFAULT_DATABASE_PATH
 from text_to_sql.llm_provider import GeminiProvider
+from text_to_sql.sql_executor import (
+    DEFAULT_MAX_ROWS,
+    DEFAULT_QUERY_TIMEOUT_SECONDS,
+    SQLExecutionResult,
+    execute_sql,
+)
 from text_to_sql.sql_generator import SQLGenerationResult
 
 
@@ -25,6 +31,12 @@ class ConversationStateError(ValueError):
 
 class PendingClarificationError(ConversationStateError):
     """Raised when a new request is submitted while an answer is pending."""
+
+
+@dataclass(frozen=True, slots=True)
+class ConversationExecutionResult:
+    sql: SQLGenerationResult
+    execution: SQLExecutionResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -465,4 +477,49 @@ def generate_conversation_sql(
         database_path,
         provider=provider,
         conversation_context=state.active_query_context,
+    )
+
+
+def execute_conversation_query(
+    state: ConversationState,
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+    *,
+    provider: StructuredResponseProvider | None = None,
+    max_rows: int = DEFAULT_MAX_ROWS,
+    timeout_seconds: float = DEFAULT_QUERY_TIMEOUT_SECONDS,
+) -> ConversationExecutionResult:
+    """Generate and execute only after clarification is clear and SQL is ready."""
+    if (
+        state.clarification_status != "clear"
+        or state.current_result is None
+        or state.current_result.status != "clear"
+        or state.current_result.clarification_needed
+    ):
+        raise ClarificationRequiredError(
+            "A clear, schema-supported request is required before query execution."
+        )
+
+    sql_result = generate_conversation_sql(
+        state,
+        database_path,
+        provider=provider,
+    )
+    if (
+        sql_result.status != "ready"
+        or sql_result.clarification_needed
+        or sql_result.generated_sql is None
+    ):
+        raise ClarificationRequiredError(
+            "SQL generation did not produce a ready query; nothing was executed."
+        )
+
+    execution_result = execute_sql(
+        sql_result.generated_sql,
+        database_path,
+        max_rows=max_rows,
+        timeout_seconds=timeout_seconds,
+    )
+    return ConversationExecutionResult(
+        sql=sql_result,
+        execution=execution_result,
     )

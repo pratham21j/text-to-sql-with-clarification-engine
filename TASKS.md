@@ -48,10 +48,12 @@
 - [x] Implement SQL parsing.
 - [x] Restrict SQL previews to read-only SELECT queries.
 - [x] Validate schema references.
-- [ ] Apply configurable result limits.
-- [ ] Execute permitted queries.
+- [x] Apply configurable result limits and report truncation accurately.
+- [x] Execute permitted queries through read-only SQLite connections.
+- [x] Revalidate SQL immediately before execution and gate execution on resolved clarification.
+- [x] Add execution timeout and structured query results.
 - [x] Handle provider and validation errors.
-- [x] Test unsafe-query rejection.
+- [x] Test unsafe-query rejection, result limits, read-only access, timeouts, and workflow gating.
 
 ## Phase 6: Desktop Application
 

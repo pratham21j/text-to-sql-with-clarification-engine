@@ -1,10 +1,10 @@
 # Text-to-SQL with Clarification Engine
 
-A Windows desktop project that will turn natural-language questions into safe
-SQLite queries. Phases 1–4 establish the project, synthetic academic database,
-Gemini provider, validated SQL generation, schema-grounded clarification, and
-explicit conversation context. Query execution and the CustomTkinter interface
-are planned for later phases.
+A Windows desktop project that turns natural-language questions into safe
+SQLite queries. Phases 1–5 establish the project, synthetic academic database,
+Gemini provider, validated SQL generation, schema-grounded clarification,
+explicit conversation context, and bounded read-only query execution. The
+CustomTkinter interface is planned for a later phase.
 
 ## Requirements
 
@@ -42,7 +42,7 @@ python scripts\init_db.py --database data\demo.db
 The initializer refuses to overwrite an existing file. Choose a new path if
 you want another copy. The sample data is synthetic and deterministic.
 
-## Clarify a question and generate a SQL preview
+## Clarify a question and run a safe query
 
 With Gemini configuration in place, run the CLI:
 
@@ -60,20 +60,26 @@ Clarification results use three statuses: `clear` (ready to continue),
 schema cannot provide the requested data).
 
 Clear requests, such as `"Show all CSE students."`, can proceed without an
-unnecessary follow-up. To use another existing SQLite database:
+unnecessary follow-up. Once clarification is resolved, the CLI generates SQL,
+validates it, executes the read-only query, and prints the SQL and structured
+results as JSON. To use another existing SQLite database:
 
 ```powershell
 python scripts\generate_sql.py --database data\demo.db "Show all CSE students."
 ```
 
+Set the CLI result cap with `--max-rows` (default `100`):
+
+```powershell
+python scripts\generate_sql.py --max-rows 250 "Show all CSE students."
+```
+
 Clarification analysis and each answer are sent to the configured Gemini model.
 Once resolved, the original question, prior resolved request, and all
-clarification turns are included in the SQL-generation request. Output contains
-the structured clarification result, SQL-generation result, and serialized
-conversation. Generated SQL is parsed and prepared against the database using
-SQLite's read-only `EXPLAIN`; it is **not executed**.
-Automated clarification and SQL-generation tests use mocked responses and do
-not make API calls.
+clarification turns are included in the SQL-generation request. The SQL is
+validated both during generation and again immediately before execution.
+Automated clarification, SQL-generation, and SQL-execution tests use mocked
+model responses and do not make API calls.
 
 ## Conversation context and follow-ups
 
@@ -104,7 +110,7 @@ from text_to_sql.conversation_context import (
     ConversationState,
     answer_conversation_clarification,
     create_conversation,
-    generate_conversation_sql,
+    execute_conversation_query,
     process_user_question,
 )
 
@@ -121,7 +127,7 @@ only available after the current result is clear:
 
 ```python
 if conversation.clarification_status == "clear":
-    sql_preview = generate_conversation_sql(conversation)
+    query_result = execute_conversation_query(conversation)
 ```
 
 `ConversationState.to_dict()` and `.to_json()` preserve the conversation ID,
@@ -130,6 +136,32 @@ and pending clarification result. Restore with `from_dict()` or `from_json()`;
 malformed, inconsistent, or incomplete state is rejected explicitly. Each
 conversation is an independent object with a unique ID; no history is held in
 module-level global state.
+
+## Read-only query execution and result limits
+
+The executor opens SQLite in read-only URI mode, enables SQLite's
+`query_only` safeguard, and validates the SQL again before running it. Only one
+supported read-only SELECT query is accepted. Clarification must be resolved
+and SQL generation must return a ready, validated query before the integrated
+conversation workflow will execute anything.
+
+`execute_sql(sql, database_path, max_rows=100)` returns a
+`SQLExecutionResult` with:
+
+- `status`: `success` or `error`
+- `columns`: column names in query order
+- `rows`: returned row values, in query order
+- `row_count`: number of rows returned (not the total number of matches)
+- `truncated`: true only when an additional row was found beyond the cap
+- `error`: a safe user-facing message, or null on success
+
+The default maximum is **100 rows**. Set `max_rows` to another positive
+integer when calling the Python API; the query itself is not rewritten, and at
+most `max_rows + 1` rows are fetched to determine whether results were
+truncated. This preserves the query's filter, ordering, and own LIMIT
+semantics. Execution is interrupted after a default **5-second** time limit;
+both `max_rows` and `timeout_seconds` can be supplied to the API. An error
+result has no partial rows or columns.
 
 ## Run the tests
 
@@ -151,6 +183,6 @@ data\               Generated, ignored SQLite database
 Follow-up interpretation is Gemini-backed and depends on the quality of the
 configured model's response; automated tests use mocks, and live API behavior
 has not been verified. Conversation snapshots are serializable, but there is no
-built-in persistent store or desktop conversation interface yet. SQL is
-validated but not executed; result limits and query execution controls are not
-implemented. PyInstaller packaging is optional and has not been configured.
+built-in persistent store or desktop conversation interface yet. Returned
+results are capped and no total-match count is computed when truncated.
+PyInstaller packaging is optional and has not been configured.
