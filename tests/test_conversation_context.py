@@ -15,11 +15,16 @@ from text_to_sql.conversation_context import (
     PendingClarificationError,
     answer_conversation_clarification,
     create_conversation,
+    execute_conversation_query,
     generate_conversation_sql,
     process_user_question,
 )
 from text_to_sql.database import initialize_database
-from text_to_sql.llm_provider import GeminiProvider, GeminiProviderError
+from text_to_sql.llm_provider import (
+    GeminiProvider,
+    GeminiProviderError,
+    GeminiQuotaError,
+)
 
 
 class _FakeProvider:
@@ -534,15 +539,21 @@ def test_unresolved_or_unsupported_conversation_cannot_generate_sql(tmp_path):
         assert sql_provider.prompts == []
 
 
-def test_provider_error_does_not_create_a_false_resolved_turn(tmp_path):
+def test_quota_error_during_initial_analysis_preserves_conversation(tmp_path):
     state = create_conversation()
     initial = state.to_dict()
-    provider = _FakeProvider(GeminiProviderError("Gemini request failed."))
+    provider = _FakeProvider(
+        GeminiQuotaError(
+            "Gemini quota is exhausted. No automatic retry was made.",
+            retry_after_seconds=54000,
+            quota_exhausted=True,
+        )
+    )
 
-    with pytest.raises(GeminiProviderError):
+    with pytest.raises(GeminiQuotaError):
         process_user_question(
             state,
-            "Show all CSE students.",
+            "Show the 5 best students.",
             _database(tmp_path),
             provider=provider,
         )
@@ -550,6 +561,86 @@ def test_provider_error_does_not_create_a_false_resolved_turn(tmp_path):
     assert state.to_dict() == initial
     assert state.clarification_status == "idle"
     assert state.active_query_context is None
+
+
+def test_failed_clarification_follow_up_is_preserved_and_can_be_retried(tmp_path):
+    state = create_conversation()
+    database_path = _database(tmp_path)
+    process_user_question(
+        state,
+        "Show students from a department.",
+        database_path,
+        provider=_FakeProvider(_needs_clarification()),
+    )
+
+    with pytest.raises(GeminiQuotaError):
+        answer_conversation_clarification(
+            state,
+            "CSE students",
+            database_path,
+            provider=_FakeProvider(
+                GeminiQuotaError(
+                    "Gemini quota is exhausted.",
+                    retry_after_seconds=54000,
+                    quota_exhausted=True,
+                )
+            ),
+        )
+
+    assert state.clarification_status == "clarification_needed"
+    assert state.history[-1].kind == "clarification_answer"
+    assert state.history[-1].content == "CSE students"
+    assert ConversationState.from_json(state.to_json()) == state
+
+    retry_provider = _FakeProvider(
+        _clear("Show students in the CSE department.")
+    )
+    result = answer_conversation_clarification(
+        state,
+        "Use the CSE department.",
+        database_path,
+        provider=retry_provider,
+    )
+
+    assert result.status == "clear"
+    assert state.history[-1].kind == "resolved_request"
+    assert [event.content for event in state.history if event.kind == "clarification_answer"] == [
+        "CSE students",
+        "Use the CSE department.",
+    ]
+    retry_prompt = retry_provider.prompts[0][0]
+    assert "CSE students" in retry_prompt
+    assert "Use the CSE department." in retry_prompt
+
+
+def test_quota_error_during_sql_generation_keeps_resolved_request(tmp_path):
+    state = create_conversation()
+    database_path = _database(tmp_path)
+    process_user_question(
+        state,
+        "Show all CSE students.",
+        database_path,
+        provider=_FakeProvider(_clear("Show all CSE students.")),
+    )
+    before = state.to_dict()
+
+    with pytest.raises(GeminiQuotaError):
+        execute_conversation_query(
+            state,
+            database_path,
+            provider=_FakeProvider(
+                GeminiQuotaError(
+                    "Gemini quota is exhausted.",
+                    retry_after_seconds=54000,
+                    quota_exhausted=True,
+                )
+            ),
+        )
+
+    assert state.to_dict() == before
+    assert state.clarification_status == "clear"
+    assert state.current_result is not None
+    assert state.current_result.resolved_question == "Show all CSE students."
 
 
 def test_sdk_api_error_is_reported_without_secret_details(tmp_path, monkeypatch):
@@ -566,7 +657,12 @@ def test_sdk_api_error_is_reported_without_secret_details(tmp_path, monkeypatch)
             del kwargs
             raise errors.APIError(
                 429,
-                {"error": {"message": "private diagnostic and credential-value"}},
+                {
+                    "error": {
+                        "status": "RESOURCE_EXHAUSTED",
+                        "message": "Quota exceeded for key=test-only-key.",
+                    }
+                },
             )
 
     state = create_conversation()
@@ -583,8 +679,11 @@ def test_sdk_api_error_is_reported_without_secret_details(tmp_path, monkeypatch)
             provider=provider,
         )
 
-    assert "private diagnostic" not in str(error.value)
-    assert "credential-value" not in str(error.value)
+    assert "HTTP 429" in str(error.value)
+    assert "RESOURCE_EXHAUSTED" in str(error.value)
+    assert "Quota exceeded" in str(error.value)
+    assert "test-only-key" not in str(error.value)
+    assert "[REDACTED]" in str(error.value)
 
 
 def test_pending_clarification_round_trips_and_preserves_state(tmp_path):

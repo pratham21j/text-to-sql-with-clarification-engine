@@ -361,7 +361,12 @@ def test_gemini_api_error_is_wrapped_and_propagates_from_clarification(
             del kwargs
             raise errors.APIError(
                 429,
-                {"error": {"message": "private diagnostic and secret"}},
+                {
+                    "error": {
+                        "status": "RESOURCE_EXHAUSTED",
+                        "message": "Quota exceeded for key=test-only-key.",
+                    }
+                },
             )
 
     provider = GeminiProvider(
@@ -376,8 +381,10 @@ def test_gemini_api_error_is_wrapped_and_propagates_from_clarification(
             provider=provider,
         )
 
-    assert "private diagnostic" not in str(error.value)
-    assert "secret" not in str(error.value)
+    assert "HTTP 429" in str(error.value)
+    assert "RESOURCE_EXHAUSTED" in str(error.value)
+    assert "Quota exceeded" in str(error.value)
+    assert "test-only-key" not in str(error.value)
 
 
 @pytest.mark.parametrize("status", ["clarification_needed", "unsupported"])

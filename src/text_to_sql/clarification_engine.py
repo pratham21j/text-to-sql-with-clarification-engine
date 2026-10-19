@@ -347,6 +347,10 @@ refinement, sort, or limit. If it is a new independent request, do not carry
 old constraints into it. If there is no relevant context, do not invent one.
 Return context_action as "refine" when extending the previous request and
 "replace" when starting an independent request. Include this field in the JSON.
+context_action describes only a separate, previously resolved conversation
+request. When answering a clarification for the original question, use
+"replace" if no separate conversation context was provided; clarification
+history already carries the original request's refinement.
 """
 
     return f"""Analyze the user's database request using only the supplied SQLite schema.
@@ -421,7 +425,9 @@ def _analyze(
         raise ClarificationResponseError(
             "Context-aware responses must specify context_action."
         )
-    if conversation_context is None and context_action == "refine":
+    if latest_clarification_question is not None and conversation_context is None:
+        context_action = "replace"
+    elif conversation_context is None and context_action == "refine":
         raise ClarificationResponseError(
             "A request cannot refine conversation context that was not provided."
         )

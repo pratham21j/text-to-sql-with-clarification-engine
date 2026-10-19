@@ -102,7 +102,27 @@ Once resolved, the original question, prior resolved request, and all
 clarification turns are included in the SQL-generation request. The SQL is
 validated both during generation and again immediately before execution.
 Automated clarification, SQL-generation, and SQL-execution tests use mocked
-model responses and do not make API calls.
+model responses and do not make API calls. Phase 7 integration tests exercise
+the CLI from initial clarification through validated SQL and bounded SQLite
+execution, and check the desktop result-table rendering without requiring a
+graphical display.
+
+### Gemini quota and rate limits
+
+HTTP 429 responses that explicitly indicate exhausted quota are reported as
+quota errors. If Gemini supplies a retry delay, the CLI and desktop show it as
+an approximate provider suggestion, not a guaranteed quota-reset time. Quota
+errors are never automatically retried or slept through. Short rate limits may
+be retried only when the provider supplies a delay of at most five seconds;
+longer rate limits require a manual retry.
+
+The CLI keeps the original question or resolved conversation available while
+it is running and asks for explicit confirmation before retrying question
+analysis or SQL generation. If a clarification request fails, the clarification
+answer remains in the conversation; re-enter it when ready to retry. The
+desktop keeps its conversation in memory and restores the failed message in
+the input field, so retrying is user initiated. Conversation state is not
+persisted across application restarts.
 
 ## Conversation context and follow-ups
 
@@ -152,6 +172,12 @@ only available after the current result is clear:
 if conversation.clarification_status == "clear":
     query_result = execute_conversation_query(conversation)
 ```
+
+The CLI and desktop pass the original request and recorded clarification turns
+to the resolver. If a provider request fails while answering a clarification,
+the answer remains in the serializable pending conversation. The CLI reports
+the failure and lets the user re-enter the answer to retry without restarting
+the original question.
 
 `ConversationState.to_dict()` and `.to_json()` preserve the conversation ID,
 ordered user/assistant events, current resolved query, clarification status,
@@ -205,7 +231,7 @@ data\               Generated, ignored SQLite database
 
 Follow-up interpretation is Gemini-backed and depends on the quality of the
 configured model's response; automated tests use mocks, and live API behavior
-has not been verified. Conversation snapshots are serializable, but the GUI
-does not persist conversation state to disk. Returned results are capped and
-no total-match count is computed when truncated. PyInstaller packaging is
-optional and has not been configured.
+has not been verified. Conversation snapshots are serializable, but the CLI
+and GUI do not persist conversation state to disk. Returned results are
+capped and no total-match count is computed when truncated. PyInstaller
+packaging is optional and has not been configured.

@@ -9,6 +9,7 @@ from typing import Mapping
 from text_to_sql.clarification_engine import (
     ClarificationRequiredError,
     ClarificationResult,
+    ClarificationTurn,
     StructuredResponseProvider,
     analyze_question,
     generate_sql_after_clarification,
@@ -342,18 +343,28 @@ def _validate_state(state: ConversationState) -> None:
         raise ConversationStateError(
             "Unresolved conversation status cannot contain a resolved result."
         )
-    elif (
-        not state.history
-        or state.history[-1]
-        != ConversationEvent(
+    else:
+        pending_question = ConversationEvent(
             "assistant",
             "clarification",
             result.clarification_question or "",
         )
-    ):
-        raise ConversationStateError(
-            "Conversation history is missing its pending clarification."
+        pending_index = next(
+            (
+                index
+                for index in range(len(state.history) - 1, -1, -1)
+                if state.history[index] == pending_question
+            ),
+            None,
         )
+        if pending_index is None or any(
+            event.role != "user" or event.kind != "clarification_answer"
+            for event in state.history[pending_index + 1 :]
+        ):
+            raise ConversationStateError(
+                "Conversation history is missing its pending clarification "
+                "or contains invalid pending answers."
+            )
 
 
 def create_conversation() -> ConversationState:
@@ -442,17 +453,50 @@ def answer_conversation_clarification(
     if not isinstance(answer, str) or not answer.strip():
         raise ConversationStateError("Clarification answer must not be empty.")
 
+    pending_question = current.clarification_question
+    pending_index = next(
+        (
+            index
+            for index in range(len(state.history) - 1, -1, -1)
+            if state.history[index]
+            == ConversationEvent("assistant", "clarification", pending_question)
+        ),
+        None,
+    )
+    if pending_index is None:
+        raise ConversationStateError(
+            "Conversation history is missing its pending clarification."
+        )
+    previous_attempts = tuple(
+        ClarificationTurn(pending_question, event.content)
+        for event in state.history[pending_index + 1 :]
+        if event.role == "user" and event.kind == "clarification_answer"
+    )
+    retrying_last_answer = (
+        bool(previous_attempts)
+        and previous_attempts[-1].clarification_answer == answer
+    )
+    clarification_history = (
+        *current.clarification_history,
+        *(
+            previous_attempts[:-1]
+            if retrying_last_answer
+            else previous_attempts
+        ),
+    )
+    if not retrying_last_answer:
+        state.record_clarification_answer(answer)
+
     active_provider = provider if provider is not None else GeminiProvider()
     result = submit_clarification_answer(
         current.original_question,
-        current.clarification_question,
+        pending_question,
         answer,
         database_path,
         provider=active_provider,
-        clarification_history=current.clarification_history,
+        clarification_history=clarification_history,
         conversation_context=state.active_query_context,
     )
-    state.record_clarification_answer(answer)
     state.record_assistant_clarification(
         result,
         previous_query_context=state.active_query_context,

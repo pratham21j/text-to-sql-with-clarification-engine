@@ -24,6 +24,7 @@ from text_to_sql.llm_provider import (
     GeminiConfigurationError,
     GeminiProvider,
     GeminiProviderError,
+    GeminiRateLimitError,
 )
 from text_to_sql.sql_generator import InvalidModelResponseError
 from text_to_sql.sql_executor import DEFAULT_MAX_ROWS
@@ -57,12 +58,18 @@ def main() -> None:
             database_path = DEFAULT_DATABASE_PATH
         provider = GeminiProvider()
         conversation = create_conversation()
-        clarification = process_user_question(
-            conversation,
-            arguments.question,
-            database_path,
-            provider=provider,
-        )
+        while True:
+            try:
+                clarification = process_user_question(
+                    conversation,
+                    arguments.question,
+                    database_path,
+                    provider=provider,
+                )
+                break
+            except GeminiRateLimitError as error:
+                if not _confirm_rate_limit_retry(error, "question analysis"):
+                    raise
         while conversation.clarification_status in {
             "clarification_needed",
             "unsupported",
@@ -74,18 +81,40 @@ def main() -> None:
                 )
             print(clarification.clarification_question)
             answer = input("> ")
-            clarification = answer_conversation_clarification(
-                conversation,
-                answer,
-                database_path,
-                provider=provider,
-            )
-        query_result = execute_conversation_query(
-            conversation,
-            database_path,
-            provider=provider,
-            max_rows=arguments.max_rows,
-        )
+            while True:
+                try:
+                    clarification = answer_conversation_clarification(
+                        conversation,
+                        answer,
+                        database_path,
+                        provider=provider,
+                    )
+                    break
+                except GeminiProviderError as error:
+                    retry_note = (
+                        "Your clarification is retained. No automatic retry was "
+                        "made; re-enter it only when you are ready to try again."
+                        if isinstance(error, GeminiRateLimitError)
+                        else "Your clarification is retained. "
+                        "Enter it again to retry, or press Ctrl+C to exit."
+                    )
+                    print(
+                        f"{error}\n{retry_note}",
+                        file=sys.stderr,
+                    )
+                    answer = input("> ")
+        while True:
+            try:
+                query_result = execute_conversation_query(
+                    conversation,
+                    database_path,
+                    provider=provider,
+                    max_rows=arguments.max_rows,
+                )
+                break
+            except GeminiRateLimitError as error:
+                if not _confirm_rate_limit_retry(error, "SQL generation"):
+                    raise
     except (
         GeminiConfigurationError,
         GeminiProviderError,
@@ -111,6 +140,17 @@ def main() -> None:
             indent=2,
         )
     )
+
+
+def _confirm_rate_limit_retry(error: GeminiRateLimitError, operation: str) -> bool:
+    print(
+        f"{error}\nThe {operation} input and conversation are retained. "
+        "No automatic retry was made.",
+        file=sys.stderr,
+    )
+    return input(
+        "Enter RETRY to make another request when ready, or press Enter to stop: "
+    ).strip().casefold() == "retry"
 
 
 if __name__ == "__main__":

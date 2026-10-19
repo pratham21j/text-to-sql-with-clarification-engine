@@ -327,7 +327,7 @@ class TextToSQLDesktopApp(ctk.CTk):
                 max_rows=self.max_rows,
             )
         except Exception as error:
-            self._worker_results.put(("error", error))
+            self._worker_results.put(("error", (error, message)))
             return
         self._worker_results.put(("result", result))
 
@@ -336,7 +336,14 @@ class TextToSQLDesktopApp(ctk.CTk):
             while True:
                 event, payload = self._worker_results.get_nowait()
                 if event == "error":
-                    self._show_error(payload)
+                    if (
+                        isinstance(payload, tuple)
+                        and len(payload) == 2
+                        and isinstance(payload[1], str)
+                    ):
+                        self._show_error(payload[0], retry_message=payload[1])
+                    else:
+                        self._show_error(payload)
                 else:
                     self._show_turn_result(payload)
         except queue.Empty:
@@ -420,13 +427,20 @@ class TextToSQLDesktopApp(ctk.CTk):
                 values=tuple("" if value is None else str(value) for value in row),
             )
 
-    def _show_error(self, error: object) -> None:
+    def _show_error(
+        self,
+        error: object,
+        *,
+        retry_message: str | None = None,
+    ) -> None:
         if isinstance(error, self._SAFE_ERRORS):
             message = str(error)
         else:
             message = "An unexpected error occurred. Please try again."
         self._append_message("assistant", f"Unable to complete the request: {message}")
         self.execution_status_label.configure(text=message)
+        if retry_message and not self.message_entry.get().strip():
+            self.message_entry.insert(0, retry_message)
         self._set_busy(False, "Request failed")
         self.message_entry.configure(
             placeholder_text="Ask a question or refine the previous request..."

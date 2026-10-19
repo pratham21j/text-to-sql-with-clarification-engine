@@ -19,7 +19,7 @@ from text_to_sql.desktop_app import (
     format_result_table,
     process_desktop_message,
 )
-from text_to_sql.llm_provider import GeminiProviderError
+from text_to_sql.llm_provider import GeminiProviderError, GeminiQuotaError
 from text_to_sql.sql_executor import SQLExecutionResult
 from text_to_sql.sql_generator import SQLGenerationResult
 
@@ -201,10 +201,128 @@ def test_background_worker_returns_errors_through_result_queue(tmp_path):
 
     TextToSQLDesktopApp._run_turn(app, "Show students.")
 
-    event, error = app._worker_results.get_nowait()
+    event, payload = app._worker_results.get_nowait()
     assert event == "error"
+    error, retry_message = payload
     assert isinstance(error, GeminiProviderError)
     assert str(error) == "Network is unavailable."
+    assert retry_message == "Show students."
+
+
+def test_desktop_ignores_duplicate_submission_while_request_is_busy():
+    app = SimpleNamespace(_busy=True)
+
+    TextToSQLDesktopApp.submit_message(app)
+
+
+def test_desktop_quota_error_restores_submitted_text_for_manual_retry():
+    class _Entry:
+        value = ""
+
+        def get(self):
+            return self.value
+
+        def insert(self, _index, value):
+            self.value = value
+
+        def configure(self, **_kwargs):
+            pass
+
+    class _Label:
+        def configure(self, **_kwargs):
+            pass
+
+    entry = _Entry()
+    messages = []
+    status_changes = []
+    app = SimpleNamespace(
+        _SAFE_ERRORS=TextToSQLDesktopApp._SAFE_ERRORS,
+        message_entry=entry,
+        execution_status_label=_Label(),
+        _append_message=lambda role, text: messages.append((role, text)),
+        _set_busy=lambda busy, status: status_changes.append((busy, status)),
+    )
+    error = GeminiQuotaError(
+        "Gemini quota is exhausted. No automatic retry was made.",
+        retry_after_seconds=54000,
+        quota_exhausted=True,
+    )
+
+    TextToSQLDesktopApp._show_error(
+        app,
+        error,
+        retry_message="Show the 5 best students.",
+    )
+
+    assert entry.value == "Show the 5 best students."
+    assert "No automatic retry was made." in messages[0][1]
+    assert status_changes == [(False, "Request failed")]
+
+
+def test_desktop_displays_returned_sql_and_rows_without_a_display():
+    class _Preview:
+        def __init__(self):
+            self.text = ""
+
+        def configure(self, **_kwargs):
+            pass
+
+        def delete(self, *_args):
+            self.text = ""
+
+        def insert(self, _index, text):
+            self.text = text
+
+    class _Label:
+        def __init__(self):
+            self.text = ""
+
+        def configure(self, *, text):
+            self.text = text
+
+    class _Table:
+        def __init__(self):
+            self.columns = ()
+            self.headings = {}
+            self.rows = []
+
+        def delete(self, *_items):
+            self.rows.clear()
+
+        def get_children(self):
+            return tuple(range(len(self.rows)))
+
+        def configure(self, *, columns):
+            self.columns = columns
+
+        def heading(self, identifier, *, text):
+            self.headings[identifier] = text
+
+        def column(self, *_args, **_kwargs):
+            pass
+
+        def insert(self, _parent, _index, *, values):
+            self.rows.append(values)
+
+    app = SimpleNamespace(
+        max_rows=100,
+        sql_preview=_Preview(),
+        execution_status_label=_Label(),
+        result_table=_Table(),
+    )
+    app._replace_table = lambda columns, rows: TextToSQLDesktopApp._replace_table(
+        app,
+        columns,
+        rows,
+    )
+
+    TextToSQLDesktopApp._show_execution(app, _ready_result().execution)
+
+    assert "SELECT student_id FROM students" in app.sql_preview.text
+    assert app.execution_status_label.text == "1 row(s) returned"
+    assert app.result_table.columns == ("column_0",)
+    assert app.result_table.headings == {"column_0": "student_id"}
+    assert app.result_table.rows == [("1001",)]
 
 
 def test_new_conversation_has_no_previous_context():

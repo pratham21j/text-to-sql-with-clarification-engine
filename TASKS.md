@@ -68,11 +68,14 @@
 
 ## Phase 7: Testing and Delivery
 
-- [x] Run final automated tests (102 passed; display-independent coverage included).
+- [x] Run final automated tests (126 passed).
 - [x] Fix any final test failures.
 - [x] Test the desktop send, clarification, SQL-generation, execution, and result-display workflow with mocked provider responses.
+- [x] Verify original CLI question and clarification history remain together; verify desktop row rendering headlessly.
 - [x] Update README.md with desktop launch instructions.
 - [x] Document setup and configuration.
+- [x] Report Gemini quota exhaustion and retry guidance without automatic long waits.
+- [x] Preserve failed clarification input and require manual retries for quota limits.
 - [x] Prepare demonstration questions.
 - [x] Verify desktop entry-point startup in the available Windows environment.
 - [ ] Test optional PyInstaller packaging.
