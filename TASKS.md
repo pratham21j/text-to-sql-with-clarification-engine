@@ -94,6 +94,18 @@
 - [x] Add headless GUI tests for formatting, clipboard, CSV, rendering, error, and state behavior.
 - [x] Run full tests and final build/dependency/worktree checks (143 passed).
 
+## Phase 9: Windows Desktop Packaging
+
+- [x] Add a separate build dependency manifest for PyInstaller.
+- [x] Add a maintainable Windows windowed, one-folder PyInstaller specification.
+- [x] Include only the synthetic starter database and exclude local `.env` configuration from packaging.
+- [x] Resolve database resources from the source project or frozen bundle and resolve `.env` beside the executable.
+- [x] Document build prerequisites, commands, output location, first-run configuration, and database behavior.
+- [x] Test source/frozen resource paths and executable-directory configuration with mocked credentials.
+- [x] Build the Windows one-folder distribution and verify the executable, bundled database, and absence of `.env` files.
+- [x] Launch the packaged GUI and verify its main window starts and responds.
+- [x] Run final full test, compile, dependency, and worktree checks (146 passed; compile, pip check, and diff checks clean).
+
 ## Rules
 
 - Work through the phases in order.

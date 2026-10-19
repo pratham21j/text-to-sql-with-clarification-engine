@@ -4,8 +4,9 @@ import os
 import sqlite3
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATABASE_PATH = PROJECT_ROOT / "data" / "academic.db"
+from text_to_sql.app_paths import resource_path
+
+DEFAULT_DATABASE_PATH = resource_path("data", "academic.db")
 
 _SCHEMA = (
     """

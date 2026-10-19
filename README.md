@@ -84,6 +84,71 @@ CustomTkinter application from the project root:
 python scripts\run_desktop.py
 ```
 
+## Build a Windows desktop distribution
+
+Build on Windows with the same Python architecture and version you intend to
+support. The runtime dependencies are listed in
+`requirements-runtime.txt`; `requirements.txt` adds pytest, while
+`requirements-build.txt` adds PyInstaller without including test dependencies.
+From the project root, create a clean build environment and install its
+dependencies:
+
+```powershell
+python -m venv .venv-build
+.\.venv-build\Scripts\Activate.ps1
+python -m pip install -r requirements-build.txt
+```
+
+The one-folder package includes the synthetic `data\academic.db` as a bundled
+starter database. If it is missing from a fresh checkout, initialize it first:
+
+```powershell
+python scripts\init_db.py
+```
+
+The initializer refuses to replace an existing database. Do not run it over
+the existing database; if it already exists, proceed to build. Create the
+distribution with the checked-in PyInstaller specification:
+
+```powershell
+python -m PyInstaller --clean --noconfirm packaging\text_to_sql.spec
+```
+
+The windowed application and its support files are written to
+`dist\TextToSQL\`; launch `dist\TextToSQL\TextToSQL.exe`. This is a one-folder
+distribution, not a standalone single executable. The packaged synthetic
+database is resolved from PyInstaller's bundled resource directory and is
+opened read-only by the application. It is not silently initialized or
+overwritten at launch. In a source checkout, the default remains
+`data\academic.db`.
+
+### Configure the packaged application
+
+The build does not bundle `.env`, `.env.example`, or API credentials. Before
+the first question, create a user-owned `.env` file beside
+`TextToSQL.exe` (or set the same variables in the process environment):
+
+```text
+GEMINI_API_KEY=your-own-key
+GEMINI_MODEL=your-configured-model
+```
+
+Keep this file private. The configured model is read at runtime, the same as
+in source runs. Extract the distribution to a folder where you can maintain
+this local configuration. Do not copy a real `.env` into `dist` or rebuild
+with secrets in the project root.
+
+To create another synthetic database without touching the packaged starter,
+choose a new path when invoking the initializer, for example:
+
+```powershell
+python scripts\init_db.py --database data\academic-copy.db
+```
+
+The packaged executable uses its bundled starter database by default; using
+another database requires launching the source application with that path
+through `TextToSQLDesktopApp(database_path=...)`.
+
 The window provides a conversation view, a message field, a new-conversation
 button, a SQL preview, and a results table. While Gemini or SQLite is working,
 the request runs in a background thread, the interface displays a loading
@@ -121,7 +186,8 @@ graphical display.
 Phase 8 also tests SQL formatting, clipboard and CSV behavior, row display,
 and conversation error recovery with mocked system interactions. Native
 clipboard and save-dialog behavior still depends on the user's desktop
-environment.
+environment. Phase 9 adds a reproducible one-folder PyInstaller build
+configuration; package build and launch status are tracked in `TASKS.md`.
 
 ### Gemini quota and rate limits
 
@@ -249,5 +315,8 @@ Follow-up interpretation is Gemini-backed and depends on the quality of the
 configured model's response; automated tests use mocks, and live API behavior
 has not been verified. Conversation snapshots are serializable, but the CLI
 and GUI do not persist conversation state to disk. Returned results are
-capped and no total-match count is computed when truncated. PyInstaller
-packaging is optional and has not been configured.
+capped and no total-match count is computed when truncated. PyInstaller output
+is a Windows one-folder distribution and must be built on Windows. The
+user-owned `.env` must be created beside the executable; the included starter
+database is bundled read-only and alternate databases currently require the
+source application's `database_path` argument.

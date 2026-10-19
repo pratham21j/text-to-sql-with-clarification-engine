@@ -13,8 +13,9 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import errors, types
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ENV_FILE = PROJECT_ROOT / ".env"
+from text_to_sql.app_paths import environment_file_path
+
+DEFAULT_ENV_FILE = environment_file_path()
 MAX_API_ATTEMPTS = 3
 INITIAL_RETRY_DELAY_SECONDS = 0.5
 MAX_RETRY_DELAY_SECONDS = 5.0
@@ -74,9 +75,12 @@ class GeminiProvider:
         self,
         *,
         client: _GeminiClient | None = None,
-        env_file: str | Path = DEFAULT_ENV_FILE,
+        env_file: str | Path | None = None,
     ) -> None:
-        load_dotenv(dotenv_path=Path(env_file), override=False)
+        configuration_path = (
+            Path(env_file) if env_file is not None else environment_file_path()
+        )
+        load_dotenv(dotenv_path=configuration_path, override=False)
 
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
         model = os.environ.get("GEMINI_MODEL", "").strip()

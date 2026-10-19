@@ -3,6 +3,7 @@
 !.env.example
 
 .venv/
+.venv-build/
 venv/
 __pycache__/
 *.py[cod]
@@ -13,3 +14,4 @@ data/*.db-*
 build/
 dist/
 *.spec
+!packaging/text_to_sql.spec
