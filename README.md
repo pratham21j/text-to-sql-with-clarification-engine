@@ -3,8 +3,8 @@
 A Windows desktop project that turns natural-language questions into safe
 SQLite queries. Phases 1–5 establish the project, synthetic academic database,
 Gemini provider, validated SQL generation, schema-grounded clarification,
-explicit conversation context, and bounded read-only query execution. The
-CustomTkinter interface is planned for a later phase.
+explicit conversation context, and bounded read-only query execution. Phase 6
+adds the CustomTkinter desktop interface.
 
 ## Requirements
 
@@ -73,6 +73,29 @@ Set the CLI result cap with `--max-rows` (default `100`):
 ```powershell
 python scripts\generate_sql.py --max-rows 250 "Show all CSE students."
 ```
+
+## Launch the desktop application
+
+After installing the requirements, initializing `data\academic.db`, and
+configuring `GEMINI_API_KEY` and `GEMINI_MODEL` as described above, launch the
+CustomTkinter application from the project root:
+
+```powershell
+python scripts\run_desktop.py
+```
+
+The window provides a conversation view, a message field, a new-conversation
+button, a SQL preview, and a results table. While Gemini or SQLite is working,
+the request runs in a background thread, the interface displays a loading
+status, and duplicate submissions are disabled. When a question needs
+clarification, answer in the same input field; the answer and original request
+remain in the active conversation context. Starting a new conversation clears
+the displayed history and creates an isolated conversation state.
+
+Only the existing conversation workflow generates, validates, and executes SQL.
+Unresolved clarification blocks generation and execution. Results show the
+returned row count, whether the row cap was reached, and a no-matches message
+when appropriate. The GUI does not persist conversation state to disk.
 
 Clarification analysis and each answer are sent to the configured Gemini model.
 Once resolved, the original question, prior resolved request, and all
@@ -182,7 +205,7 @@ data\               Generated, ignored SQLite database
 
 Follow-up interpretation is Gemini-backed and depends on the quality of the
 configured model's response; automated tests use mocks, and live API behavior
-has not been verified. Conversation snapshots are serializable, but there is no
-built-in persistent store or desktop conversation interface yet. Returned
-results are capped and no total-match count is computed when truncated.
-PyInstaller packaging is optional and has not been configured.
+has not been verified. Conversation snapshots are serializable, but the GUI
+does not persist conversation state to disk. Returned results are capped and
+no total-match count is computed when truncated. PyInstaller packaging is
+optional and has not been configured.

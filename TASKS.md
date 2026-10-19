@@ -57,24 +57,24 @@
 
 ## Phase 6: Desktop Application
 
-- [ ] Build the CustomTkinter window.
-- [ ] Implement the conversation display.
-- [ ] Add the question input field.
-- [ ] Add clarification controls.
-- [ ] Add SQL preview.
-- [ ] Add the results table.
-- [ ] Add loading and error states.
-- [ ] Integrate all backend modules.
+- [x] Build the CustomTkinter window.
+- [x] Implement the conversation display.
+- [x] Add the question input field and Send control.
+- [x] Support clarification responses in the conversation input.
+- [x] Add SQL preview.
+- [x] Add the query-results table and execution status.
+- [x] Add background processing, loading, and error states.
+- [x] Integrate clarification, conversation context, SQL generation, validation, and execution.
 
 ## Phase 7: Testing and Delivery
 
-- [ ] Run automated tests.
-- [ ] Fix failing tests.
-- [ ] Test the end-to-end workflow.
-- [ ] Update README.md.
-- [ ] Document setup and configuration.
-- [ ] Prepare demonstration questions.
-- [ ] Verify clean application startup.
+- [x] Run final automated tests (102 passed; display-independent coverage included).
+- [x] Fix any final test failures.
+- [x] Test the desktop send, clarification, SQL-generation, execution, and result-display workflow with mocked provider responses.
+- [x] Update README.md with desktop launch instructions.
+- [x] Document setup and configuration.
+- [x] Prepare demonstration questions.
+- [x] Verify desktop entry-point startup in the available Windows environment.
 - [ ] Test optional PyInstaller packaging.
 
 ## Rules
