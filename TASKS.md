@@ -1,0 +1,74 @@
+# Text-to-SQL with Clarification Engine
+
+## Phase 1: Foundation
+
+- [x] Inspect the development environment.
+- [x] Create the project structure.
+- [x] Configure Python dependencies.
+- [x] Configure environment variables.
+- [x] Create the SQLite database initialization script.
+- [x] Create the academic schema.
+- [x] Generate deterministic sample data.
+- [x] Verify database connectivity and relationships with automated tests.
+- [x] Document setup and execution instructions in README.md.
+
+## Phase 2: Text-to-SQL
+
+- [x] Integrate the official Gemini SDK through a configurable provider (mocked SDK tests; no live request).
+- [x] Retrieve table, column, type, and foreign-key metadata from SQLite.
+- [x] Implement and validate structured LLM responses.
+- [x] Generate and validate SQL for clear questions.
+- [ ] Test filters, sorting, aggregations, and joins.
+
+## Phase 3: Clarification Engine
+
+- [x] Define clear, clarification-needed, and unsupported result statuses.
+- [x] Detect vague, incomplete, and unsupported requests using the live schema context.
+- [x] Generate targeted clarification questions.
+- [x] Incorporate custom clarification responses.
+- [x] Preserve the original request and serialized clarification history.
+- [x] Resolve the intended query after sufficient clarification.
+- [x] Support multiple explicit clarification turns.
+- [x] Test conversation-state management with mocked providers.
+- [x] Block SQL generation until clarification is resolved; retain context when generation proceeds.
+
+## Phase 4: SQL Safety
+
+- [ ] Implement SQL parsing.
+- [ ] Restrict execution to read-only queries.
+- [ ] Validate schema references.
+- [ ] Apply result limits.
+- [ ] Execute permitted queries.
+- [ ] Handle errors and API failures.
+- [ ] Test unsafe-query rejection.
+
+## Phase 5: Desktop Application
+
+- [ ] Build the CustomTkinter window.
+- [ ] Implement the conversation display.
+- [ ] Add the question input field.
+- [ ] Add clarification controls.
+- [ ] Add SQL preview.
+- [ ] Add the results table.
+- [ ] Add loading and error states.
+- [ ] Integrate all backend modules.
+
+## Phase 6: Testing and Delivery
+
+- [ ] Run automated tests.
+- [ ] Fix failing tests.
+- [ ] Test the end-to-end workflow.
+- [ ] Update README.md.
+- [ ] Document setup and configuration.
+- [ ] Prepare demonstration questions.
+- [ ] Verify clean application startup.
+- [ ] Test optional PyInstaller packaging.
+
+## Rules
+
+- Work through the phases in order.
+- Update this checklist as work progresses.
+- Do not mark untested features as complete.
+- Document blockers and required user actions.
+- Preserve existing work.
+- Keep the implementation appropriate for a minor project.
