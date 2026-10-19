@@ -49,6 +49,7 @@ class ClarificationResult:
     clarification_answer: str | None
     resolved_question: str | None
     clarification_history: tuple[ClarificationTurn, ...] = ()
+    context_action: str = "replace"
 
     def to_dict(self) -> dict[str, object]:
         """Return JSON-serializable conversation state for persistence or follow-ups."""
@@ -67,7 +68,10 @@ class ClarificationResult:
             "resolved_question",
             "clarification_history",
         }
-        if set(payload) != expected_keys:
+        if frozenset(payload) not in {
+            frozenset(expected_keys),
+            frozenset(expected_keys | {"context_action"}),
+        }:
             raise ClarificationResponseError(
                 "Serialized clarification state has missing or unexpected fields."
             )
@@ -88,6 +92,7 @@ class ClarificationResult:
             clarification_answer=payload["clarification_answer"],
             resolved_question=payload["resolved_question"],
             clarification_history=history,
+            context_action=payload.get("context_action", "replace"),
         )
         _validate_result(result)
         return result
@@ -117,6 +122,14 @@ _RESPONSE_SCHEMA: dict[str, object] = {
                 "intent and all answered clarifications, or null when unresolved."
             ),
         },
+        "context_action": {
+            "type": "STRING",
+            "enum": ["refine", "replace"],
+            "description": (
+                "When prior context exists, use refine if this request changes "
+                "or narrows it; use replace for an independent new request."
+            ),
+        },
     },
     "required": [
         "status",
@@ -124,6 +137,7 @@ _RESPONSE_SCHEMA: dict[str, object] = {
         "clarification_question",
         "clarification_reason",
         "resolved_question",
+        "context_action",
     ],
     "propertyOrdering": [
         "status",
@@ -131,6 +145,7 @@ _RESPONSE_SCHEMA: dict[str, object] = {
         "clarification_question",
         "clarification_reason",
         "resolved_question",
+        "context_action",
     ],
 }
 
@@ -184,6 +199,13 @@ def _validate_result(result: ClarificationResult) -> None:
         raise ClarificationResponseError(
             "clarification_answer must be a string or null."
         )
+    if not isinstance(result.context_action, str) or result.context_action not in {
+        "refine",
+        "replace",
+    }:
+        raise ClarificationResponseError(
+            "context_action must be refine or replace."
+        )
     if not isinstance(result.clarification_history, tuple):
         raise ClarificationResponseError(
             "Clarification history must be an immutable sequence of turns."
@@ -228,7 +250,7 @@ def _validate_result(result: ClarificationResult) -> None:
 
 
 def _parse_model_response(response_text: str) -> tuple[
-    str, bool, str | None, str | None, str | None
+    str, bool, str | None, str | None, str | None, str | None, bool
 ]:
     try:
         payload = json.loads(response_text)
@@ -244,7 +266,10 @@ def _parse_model_response(response_text: str) -> tuple[
         "clarification_reason",
         "resolved_question",
     }
-    if not isinstance(payload, dict) or set(payload) != required_fields:
+    if not isinstance(payload, dict) or frozenset(payload) not in {
+        frozenset(required_fields),
+        frozenset(required_fields | {"context_action"}),
+    }:
         raise ClarificationResponseError(
             "Gemini clarification response must contain exactly the required fields."
         )
@@ -254,6 +279,7 @@ def _parse_model_response(response_text: str) -> tuple[
     clarification_question = payload["clarification_question"]
     clarification_reason = payload["clarification_reason"]
     resolved_question = payload["resolved_question"]
+    context_action = payload.get("context_action", "replace")
     if (
         not isinstance(status, str)
         or not isinstance(clarification_needed, bool)
@@ -269,6 +295,8 @@ def _parse_model_response(response_text: str) -> tuple[
             resolved_question is not None
             and not isinstance(resolved_question, str)
         )
+        or not isinstance(context_action, str)
+        or context_action not in {"refine", "replace"}
     ):
         raise ClarificationResponseError(
             "Gemini clarification response contains fields with invalid types."
@@ -280,6 +308,8 @@ def _parse_model_response(response_text: str) -> tuple[
         clarification_question,
         clarification_reason,
         resolved_question,
+        context_action,
+        "context_action" in payload,
     )
 
 
@@ -288,6 +318,7 @@ def _build_prompt(
     schema: DatabaseSchema,
     *,
     clarification_history: Sequence[ClarificationTurn] = (),
+    conversation_context: str | None = None,
     latest_clarification_question: str | None = None,
     latest_clarification_answer: str | None = None,
 ) -> str:
@@ -304,6 +335,19 @@ def _build_prompt(
             "User's answer to that question:\n"
             f"{latest_clarification_answer}\n"
         )
+    prior_context = ""
+    if conversation_context is not None:
+        prior_context = f"""
+Relevant context from this conversation's most recent resolved request:
+{conversation_context}
+
+If the new user question refers to prior results or modifies this request,
+preserve every prior filter and constraint while applying the requested
+refinement, sort, or limit. If it is a new independent request, do not carry
+old constraints into it. If there is no relevant context, do not invent one.
+Return context_action as "refine" when extending the previous request and
+"replace" when starting an independent request. Include this field in the JSON.
+"""
 
     return f"""Analyze the user's database request using only the supplied SQLite schema.
 
@@ -327,6 +371,8 @@ Return exactly one JSON object with these fields:
 - clarification_question: null for "clear"; otherwise a concise targeted question
 - clarification_reason: null for "clear"; otherwise why the request cannot proceed
 - resolved_question: a complete request for "clear"; null otherwise
+- context_action: "refine" when extending relevant prior context, otherwise "replace"
+When no prior context was provided, use context_action "replace".
 
 SQLite schema (table names, columns, types, and relationships):
 {schema_json}
@@ -334,6 +380,7 @@ SQLite schema (table names, columns, types, and relationships):
 Clarification history already answered:
 {history_json}
 
+{prior_context}
 Original user question (preserve its intent):
 {original_question}
 {follow_up}
@@ -347,6 +394,7 @@ def _analyze(
     provider: StructuredResponseProvider,
     clarification_answer: str | None,
     clarification_history: tuple[ClarificationTurn, ...],
+    conversation_context: str | None = None,
     latest_clarification_question: str | None = None,
 ) -> ClarificationResult:
     response_text = provider.generate_json(
@@ -354,6 +402,7 @@ def _analyze(
             original_question,
             schema,
             clarification_history=clarification_history,
+            conversation_context=conversation_context,
             latest_clarification_question=latest_clarification_question,
             latest_clarification_answer=clarification_answer,
         ),
@@ -365,7 +414,17 @@ def _analyze(
         clarification_question,
         clarification_reason,
         resolved_question,
+        context_action,
+        has_context_action,
     ) = _parse_model_response(response_text)
+    if conversation_context is not None and not has_context_action:
+        raise ClarificationResponseError(
+            "Context-aware responses must specify context_action."
+        )
+    if conversation_context is None and context_action == "refine":
+        raise ClarificationResponseError(
+            "A request cannot refine conversation context that was not provided."
+        )
     result = ClarificationResult(
         status=status,
         original_question=original_question,
@@ -375,6 +434,7 @@ def _analyze(
         clarification_answer=clarification_answer,
         resolved_question=resolved_question,
         clarification_history=clarification_history,
+        context_action=context_action,
     )
     _validate_result(result)
     return result
@@ -385,6 +445,7 @@ def analyze_question(
     database_path: str | Path = DEFAULT_DATABASE_PATH,
     *,
     provider: StructuredResponseProvider | None = None,
+    conversation_context: str | None = None,
 ) -> ClarificationResult:
     """Classify a new question against the actual database schema."""
     if not isinstance(question, str) or not question.strip():
@@ -397,6 +458,7 @@ def analyze_question(
         provider=active_provider,
         clarification_answer=None,
         clarification_history=(),
+        conversation_context=conversation_context,
     )
 
 
@@ -408,6 +470,7 @@ def submit_clarification_answer(
     *,
     provider: StructuredResponseProvider | None = None,
     clarification_history: Sequence[ClarificationTurn | Mapping[str, object]] = (),
+    conversation_context: str | None = None,
 ) -> ClarificationResult:
     """Resolve a clarification turn, retaining prior context for later turns."""
     for label, value in (
@@ -428,6 +491,7 @@ def submit_clarification_answer(
         provider=active_provider,
         clarification_answer=clarification_answer,
         clarification_history=turns,
+        conversation_context=conversation_context,
         latest_clarification_question=clarification_question,
     )
 
@@ -437,6 +501,7 @@ def generate_sql_after_clarification(
     database_path: str | Path = DEFAULT_DATABASE_PATH,
     *,
     provider: StructuredResponseProvider | None = None,
+    conversation_context: str | None = None,
 ) -> SQLGenerationResult:
     """Generate validated SQL only for a clear result, retaining the full context."""
     _validate_result(result)
@@ -446,6 +511,12 @@ def generate_sql_after_clarification(
         )
 
     request_parts = [f"Original request: {result.original_question}"]
+    if conversation_context is not None:
+        request_parts.append(
+            "Relevant prior conversation context; preserve applicable filters "
+            "and constraints unless the resolved request explicitly changes them:\n"
+            f"{conversation_context}"
+        )
     request_parts.extend(
         f"Clarification: {turn.clarification_question}\n"
         f"User answer: {turn.clarification_answer}"

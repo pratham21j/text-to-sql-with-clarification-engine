@@ -1,10 +1,10 @@
 # Text-to-SQL with Clarification Engine
 
 A Windows desktop project that will turn natural-language questions into safe
-SQLite queries. Phases 1–3 establish the project, synthetic academic database,
-Gemini provider, validated SQL generation, and a schema-grounded clarification
-workflow. Query execution and the CustomTkinter interface are planned for later
-phases.
+SQLite queries. Phases 1–4 establish the project, synthetic academic database,
+Gemini provider, validated SQL generation, schema-grounded clarification, and
+explicit conversation context. Query execution and the CustomTkinter interface
+are planned for later phases.
 
 ## Requirements
 
@@ -67,43 +67,69 @@ python scripts\generate_sql.py --database data\demo.db "Show all CSE students."
 ```
 
 Clarification analysis and each answer are sent to the configured Gemini model.
-Once resolved, the original question and all clarification turns are included
-in the SQL-generation request. Output contains the structured clarification
-result and SQL-generation result. Generated SQL is parsed and prepared against
-the database using SQLite's read-only `EXPLAIN`; it is **not executed**.
+Once resolved, the original question, prior resolved request, and all
+clarification turns are included in the SQL-generation request. Output contains
+the structured clarification result, SQL-generation result, and serialized
+conversation. Generated SQL is parsed and prepared against the database using
+SQLite's read-only `EXPLAIN`; it is **not executed**.
 Automated clarification and SQL-generation tests use mocked responses and do
 not make API calls.
 
-The Python API can also be used without the interactive CLI:
+## Conversation context and follow-ups
 
-```python
-from text_to_sql.clarification_engine import (
-    ClarificationResult,
-    analyze_question,
-    generate_sql_after_clarification,
-    submit_clarification_answer,
-)
+Create a conversation to keep turns isolated. A follow-up that refers to
+previous results is analyzed with the active resolved request; Gemini is asked
+to preserve existing filters when sorting or limiting results. A follow-up
+without an earlier resolved request receives no invented context and should be
+clarified instead. A self-contained unrelated question can become the new
+active request.
 
-analysis = analyze_question("Show students with good marks.")
-if analysis.clarification_needed:
-    clarification_question = analysis.clarification_question
-    if clarification_question is None:
-        raise ValueError("Missing clarification question")
-    answer = input(clarification_question + " ")
-    analysis = submit_clarification_answer(
-        analysis.original_question,
-        clarification_question,
-        answer,
-        clarification_history=analysis.clarification_history,
-    )
-if analysis.status == "clear":
-    sql_preview = generate_sql_after_clarification(analysis)
+Example conversation:
+
+```text
+User: Show students with CGPA above 8.
+User: Sort them by CGPA descending.
+User: Only show the top 3.
 ```
 
-Persist `analysis.to_dict()` if conversation state needs to survive process
-restarts; restore it with `ClarificationResult.from_dict(...)`. Submit each
-answer with the original question and returned `clarification_history` to
-preserve context across multiple turns.
+The resolved request used for SQL generation retains the `CGPA above 8` filter,
+the descending sort, and the top-three limit. Follow-ups that are unclear
+result in another clarification rather than a guessed interpretation.
+
+The Python API can serialize and restore a conversation between application
+sessions:
+
+```python
+from text_to_sql.conversation_context import (
+    ConversationState,
+    answer_conversation_clarification,
+    create_conversation,
+    generate_conversation_sql,
+    process_user_question,
+)
+
+conversation = create_conversation()
+analysis = process_user_question(conversation, "Show students with CGPA above 8.")
+analysis = process_user_question(conversation, "Sort them by CGPA descending.")
+restored = ConversationState.from_json(conversation.to_json())
+analysis = process_user_question(restored, "Only show the top 3.")
+```
+
+When clarification is pending, answer it through
+`answer_conversation_clarification(conversation, answer)`. SQL generation is
+only available after the current result is clear:
+
+```python
+if conversation.clarification_status == "clear":
+    sql_preview = generate_conversation_sql(conversation)
+```
+
+`ConversationState.to_dict()` and `.to_json()` preserve the conversation ID,
+ordered user/assistant events, current resolved query, clarification status,
+and pending clarification result. Restore with `from_dict()` or `from_json()`;
+malformed, inconsistent, or incomplete state is rejected explicitly. Each
+conversation is an independent object with a unique ID; no history is held in
+module-level global state.
 
 ## Run the tests
 
@@ -122,10 +148,9 @@ data\               Generated, ignored SQLite database
 
 ## Current limitations
 
-Clarification analysis is Gemini-backed and depends on the quality of the
+Follow-up interpretation is Gemini-backed and depends on the quality of the
 configured model's response; automated tests use mocks, and live API behavior
-has not been verified. The structured clarification state is serializable, but
-there is not yet a desktop conversation interface or built-in persistent
-conversation store. SQL is validated but not executed, and result limits and
-query execution controls are not implemented. PyInstaller packaging is
-optional and has not been configured.
+has not been verified. Conversation snapshots are serializable, but there is no
+built-in persistent store or desktop conversation interface yet. SQL is
+validated but not executed; result limits and query execution controls are not
+implemented. PyInstaller packaging is optional and has not been configured.

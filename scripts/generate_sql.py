@@ -12,9 +12,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from text_to_sql.clarification_engine import (
     ClarificationResponseError,
-    analyze_question,
-    generate_sql_after_clarification,
-    submit_clarification_answer,
+)
+from text_to_sql.conversation_context import (
+    answer_conversation_clarification,
+    create_conversation,
+    generate_conversation_sql,
+    process_user_question,
 )
 from text_to_sql.database import DEFAULT_DATABASE_PATH
 from text_to_sql.llm_provider import (
@@ -46,31 +49,33 @@ def main() -> None:
         if database_path is None:
             database_path = DEFAULT_DATABASE_PATH
         provider = GeminiProvider()
-        clarification = analyze_question(
+        conversation = create_conversation()
+        clarification = process_user_question(
+            conversation,
             arguments.question,
-            database_path=database_path,
+            database_path,
             provider=provider,
         )
-        while clarification.clarification_needed:
-            print(clarification.clarification_reason)
-            clarification_question = clarification.clarification_question
-            if clarification_question is None:
+        while conversation.clarification_status in {
+            "clarification_needed",
+            "unsupported",
+        }:
+            clarification = conversation.current_result
+            if clarification is None or clarification.clarification_question is None:
                 raise ClarificationResponseError(
-                    "Clarification response is missing its follow-up question."
+                    "Conversation state is missing its follow-up question."
                 )
-            print(clarification_question)
+            print(clarification.clarification_question)
             answer = input("> ")
-            clarification = submit_clarification_answer(
-                clarification.original_question,
-                clarification_question,
+            clarification = answer_conversation_clarification(
+                conversation,
                 answer,
-                database_path=database_path,
+                database_path,
                 provider=provider,
-                clarification_history=clarification.clarification_history,
             )
-        sql_result = generate_sql_after_clarification(
-            clarification,
-            database_path=database_path,
+        sql_result = generate_conversation_sql(
+            conversation,
+            database_path,
             provider=provider,
         )
     except (
@@ -92,6 +97,7 @@ def main() -> None:
             {
                 "clarification": asdict(clarification),
                 "sql": asdict(sql_result),
+                "conversation": conversation.to_dict(),
             },
             indent=2,
         )

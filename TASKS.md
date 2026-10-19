@@ -32,17 +32,28 @@
 - [x] Test conversation-state management with mocked providers.
 - [x] Block SQL generation until clarification is resolved; retain context when generation proceeds.
 
-## Phase 4: SQL Safety
+## Phase 4: Conversation Context Management
 
-- [ ] Implement SQL parsing.
-- [ ] Restrict execution to read-only queries.
-- [ ] Validate schema references.
-- [ ] Apply result limits.
+- [x] Create unique, explicit conversation state with ordered events.
+- [x] Append user questions and record assistant clarifications and answers.
+- [x] Serialize and restore validated state using dictionaries or JSON.
+- [x] Preserve the active resolved request for follow-up understanding.
+- [x] Resolve pronoun references and refinements using explicit conversation context.
+- [x] Preserve prior filters when follow-up requests sort or limit results.
+- [x] Keep separate conversations isolated and block unresolved SQL generation.
+- [x] Cover conversation flows and provider failures with mocked tests.
+
+## Phase 5: SQL Safety
+
+- [x] Implement SQL parsing.
+- [x] Restrict SQL previews to read-only SELECT queries.
+- [x] Validate schema references.
+- [ ] Apply configurable result limits.
 - [ ] Execute permitted queries.
-- [ ] Handle errors and API failures.
-- [ ] Test unsafe-query rejection.
+- [x] Handle provider and validation errors.
+- [x] Test unsafe-query rejection.
 
-## Phase 5: Desktop Application
+## Phase 6: Desktop Application
 
 - [ ] Build the CustomTkinter window.
 - [ ] Implement the conversation display.
@@ -53,7 +64,7 @@
 - [ ] Add loading and error states.
 - [ ] Integrate all backend modules.
 
-## Phase 6: Testing and Delivery
+## Phase 7: Testing and Delivery
 
 - [ ] Run automated tests.
 - [ ] Fix failing tests.
