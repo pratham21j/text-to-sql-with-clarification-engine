@@ -95,7 +95,19 @@ the displayed history and creates an isolated conversation state.
 Only the existing conversation workflow generates, validates, and executes SQL.
 Unresolved clarification blocks generation and execution. Results show the
 returned row count, whether the row cap was reached, and a no-matches message
-when appropriate. The GUI does not persist conversation state to disk.
+when appropriate. SQL is formatted for readability in a separate preview and
+can be copied without executing it. Query results support horizontal and
+vertical scrolling, readable headings and column widths, and CSV export of the
+currently displayed columns and rows; exporting never reruns the query. The
+header shows the configured database path and table names when the database is
+available. User and assistant messages have distinct visual styles. The GUI
+does not persist conversation state to disk.
+
+Recoverable Gemini failures restore the submitted message for a manual retry
+and preserve pending clarification context. Quota exhaustion is not
+automatically retried. HTTP 503, invalid-request, and network failures are
+reported with user-facing guidance without displaying provider diagnostics or
+credentials.
 
 Clarification analysis and each answer are sent to the configured Gemini model.
 Once resolved, the original question, prior resolved request, and all
@@ -106,6 +118,10 @@ model responses and do not make API calls. Phase 7 integration tests exercise
 the CLI from initial clarification through validated SQL and bounded SQLite
 execution, and check the desktop result-table rendering without requiring a
 graphical display.
+Phase 8 also tests SQL formatting, clipboard and CSV behavior, row display,
+and conversation error recovery with mocked system interactions. Native
+clipboard and save-dialog behavior still depends on the user's desktop
+environment.
 
 ### Gemini quota and rate limits
 

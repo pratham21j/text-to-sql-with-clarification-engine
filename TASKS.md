@@ -80,6 +80,20 @@
 - [x] Verify desktop entry-point startup in the available Windows environment.
 - [ ] Test optional PyInstaller packaging.
 
+## Phase 8: GUI Improvements
+
+- [x] Format the SQL preview for readability and provide clipboard copy with a safe failure message.
+- [x] Keep copying/formatting separate from validated read-only SQL execution.
+- [x] Improve result headings, dynamic column sizing, alternating rows, and existing two-axis scrolling.
+- [x] Display result counts, truncation, and an explicit empty-results message.
+- [x] Export displayed result columns and rows to CSV with cancellation and file-error handling.
+- [x] Style user and assistant messages distinctly and preserve pending conversation state on provider failures.
+- [x] Verify new conversations use isolated state.
+- [x] Show the configured database path and schema table names when available.
+- [x] Present safe, actionable messages for quota, service, invalid-request, and network errors.
+- [x] Add headless GUI tests for formatting, clipboard, CSV, rendering, error, and state behavior.
+- [x] Run full tests and final build/dependency/worktree checks (143 passed).
+
 ## Rules
 
 - Work through the phases in order.
