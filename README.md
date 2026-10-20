@@ -6,6 +6,19 @@ Gemini provider, validated SQL generation, schema-grounded clarification,
 explicit conversation context, and bounded read-only query execution. Phase 6
 adds the CustomTkinter desktop interface.
 
+## Overview and features
+
+The application analyzes natural-language questions against the live SQLite
+schema, asks for clarification instead of guessing when intent is materially
+ambiguous, and carries resolved context into follow-up questions. It previews
+validated SQL, executes supported read-only queries with a row cap, and displays
+results in a table that can be exported to CSV.
+
+The project uses Python, CustomTkinter, SQLite, the official `google-genai`
+SDK, SQLGlot, `python-dotenv`, pytest, Git, and PyInstaller. Gemini is used only
+for question analysis and SQL generation; SQLite execution and result display
+are local.
+
 ## Requirements
 
 - Python 3.11 or newer
@@ -206,6 +219,12 @@ desktop keeps its conversation in memory and restores the failed message in
 the input field, so retrying is user initiated. Conversation state is not
 persisted across application restarts.
 
+## Demonstration guide
+
+See [docs/demo-guide.md](./docs/demo-guide.md) for a reproducible viva
+walkthrough, including a Gemini-backed desktop flow and separate mocked and
+local-only checks for use when the API is unavailable.
+
 ## Conversation context and follow-ups
 
 Create a conversation to keep turns isolated. A follow-up that refers to
@@ -303,10 +322,13 @@ python -m pytest
 ## Project layout
 
 ```text
-src\text_to_sql\    Application package
-scripts\            Database initialization command
-tests\              Automated tests
-data\               Generated, ignored SQLite database
+src\text_to_sql\          Application package and desktop interface
+scripts\                  Desktop, CLI, and database initialization entry points
+tests\                    Mocked provider and temporary-database tests
+data\academic.db          Synthetic starter database (ignored by Git)
+packaging\text_to_sql.spec PyInstaller one-folder build specification
+docs\demo-guide.md        Viva demonstration plan
+requirements*.txt         Runtime, test, and packaging dependencies
 ```
 
 ## Current limitations
@@ -320,3 +342,8 @@ is a Windows one-folder distribution and must be built on Windows. The
 user-owned `.env` must be created beside the executable; the included starter
 database is bundled read-only and alternate databases currently require the
 source application's `database_path` argument.
+
+This is an educational demonstration, not a production security guarantee.
+Question and clarification text plus schema metadata are sent to the configured
+Gemini provider; database query results are executed and displayed locally.
+Do not submit confidential information or connect sensitive databases.

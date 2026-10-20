@@ -113,6 +113,27 @@ def test_maximum_rows_are_returned_and_truncation_is_reported(tmp_path):
     assert DEFAULT_MAX_ROWS == 100
 
 
+def test_large_result_sets_respect_the_default_row_cap(tmp_path):
+    database_path = _database(tmp_path / "items.db")
+    with sqlite3.connect(database_path) as connection:
+        connection.executemany(
+            "INSERT INTO items (item_id, label) VALUES (?, ?)",
+            [(index, f"item-{index}") for index in range(6, 1006)],
+        )
+
+    result = execute_sql(
+        "SELECT item_id FROM items ORDER BY item_id",
+        database_path,
+    )
+
+    assert result.status == "success"
+    assert result.rows == tuple(
+        (index,) for index in range(1, DEFAULT_MAX_ROWS + 1)
+    )
+    assert result.row_count == DEFAULT_MAX_ROWS
+    assert result.truncated is True
+
+
 @pytest.mark.parametrize(
     "sql",
     [
@@ -144,9 +165,11 @@ def test_invalid_sql_columns_and_multiple_statements_are_rejected_without_change
         "UPDATE items SET label = 'changed' WHERE item_id = 1",
         "DELETE FROM items WHERE item_id = 1",
         "DROP TABLE items",
+        "ALTER TABLE items ADD COLUMN notes TEXT",
+        "CREATE TABLE shadow_items (item_id INTEGER PRIMARY KEY)",
     ],
 )
-def test_data_modifying_statements_are_rejected_and_database_is_unchanged(
+def test_data_modifying_and_schema_changing_statements_are_rejected_and_database_is_unchanged(
     tmp_path,
     sql,
 ):

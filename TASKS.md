@@ -106,6 +106,46 @@
 - [x] Launch the packaged GUI and verify its main window starts and responds.
 - [x] Run final full test, compile, dependency, and worktree checks (146 passed; compile, pip check, and diff checks clean).
 
+## Phase 10: Repository Audit, Testing, and Demonstration
+
+### Phase 10.1: Repository audit
+
+- [x] Inspect the project guidance, documentation, dependencies, source, tests, packaging configuration, and Git state before editing.
+- [x] Verify the existing baseline suite (146 passed) without live Gemini requests.
+- [x] Inspect the bundled database and verify the packaged GUI starts.
+- [x] Record that no confirmed runtime vulnerability required a source-code fix; document educational-use and provider privacy limitations.
+
+### Phase 10.2: End-to-end and safety tests
+
+- [x] Preserve existing mocked clear-query, clarification, follow-up, provider-failure, desktop, CSV, and read-only execution coverage.
+- [x] Add temporary-database cases for `ALTER` and `CREATE` rejection and verify rejected statements leave the database unchanged.
+- [x] Add a large-result regression test that checks the default 100-row cap and truncation indicator.
+- [x] Run the complete suite after the added regression cases (149 passed).
+
+### Phase 10.3: Security and reliability review
+
+- [x] Review credential configuration, packaging exclusions, SQL validation, read-only execution, result limits, path resolution, error display, and conversation recovery.
+- [x] Document that this educational project is not a production security guarantee and that question/clarification text and schema metadata go to the configured Gemini provider.
+
+### Phase 10.4: Documentation
+
+- [x] Expand the README project overview, technology stack, project layout, and limitations.
+- [x] Link the README to the viva demonstration guide.
+
+### Phase 10.5: Demonstration preparation
+
+- [x] Add a viva walkthrough for a clear query, ambiguity, clarification, context-aware follow-up, SQL/results inspection, and CSV export.
+- [x] Separate live Gemini-dependent steps from mocked workflow tests and local SQL/database checks.
+- [x] Use the temporary-database safety regression as the reproducible disallowed-SQL demonstration.
+
+### Phase 10.6: Final verification
+
+- [x] Run `python -m pytest` (149 passed).
+- [x] Run `python -m compileall -q src/text_to_sql scripts`.
+- [x] Run `python -m pip check` (no broken requirements).
+- [x] Run `git diff --check` and inspect final Git status and diff summary.
+- [x] Verify `.env` remains ignored/untracked, no environment files are packaged, and source/bundled database hashes match.
+
 ## Rules
 
 - Work through the phases in order.
