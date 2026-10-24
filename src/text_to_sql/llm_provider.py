@@ -9,7 +9,6 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Protocol
 
-import httpx
 from dotenv import load_dotenv
 from google import genai
 from google.genai import errors, types
@@ -255,7 +254,9 @@ class GeminiProvider:
                     "Gemini request failed.",
                     diagnostic=_format_api_error(error, self._api_key),
                 ) from error
-            except httpx.HTTPError as error:
+            except Exception as error:
+                if type(error).__module__.split(".", 1)[0] != "httpx":
+                    raise
                 raise GeminiProviderError(
                     "Gemini network request failed.",
                     diagnostic=_redact_diagnostic(

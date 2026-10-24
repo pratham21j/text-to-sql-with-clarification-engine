@@ -172,6 +172,19 @@
 - [x] Inspect packaging implications; reuse the existing SDK, do not add a runtime dependency or rebuild the executable.
 - [x] Preserve the real `.env`, academic database, Git index, and existing worktree changes.
 
+## Phase 13: Synthetic Academic Database Expansion
+
+- [x] Audit the existing SQLite schema, relationships, constraints, row counts, database paths, application access, and dataset-sensitive tests without making changes.
+- [x] Create and verify a SQLite-consistent backup before modifying project files or database records.
+- [x] Add a transactional, deterministic, idempotent seeding script without changing the existing initializer or schema.
+- [x] Add focused tests for target counts, original-record preservation, valid relationships and ranges, rerun idempotency, and rollback on conflicting seed records.
+- [x] Expand the existing database to 300 students, 1,186 enrollments, and 2,360 examinations while preserving departments and courses.
+- [x] Update setup and viva demonstration documentation for the expanded data and schema-supported queries.
+- [x] Run `python -m pytest` (190 passed, 1 skipped; one third-party deprecation warning).
+- [x] Run `python -m compileall -q src\text_to_sql scripts`.
+- [x] Run `python -m pip check` (no broken requirements).
+- [x] Run `git diff --check` and verify database counts, backup preservation, foreign keys, value ranges, idempotency, and a read-only application query.
+
 ## Rules
 
 - Work through the phases in order.

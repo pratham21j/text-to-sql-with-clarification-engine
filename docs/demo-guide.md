@@ -19,6 +19,23 @@ The source database contains `students`, `departments`, `courses`,
 examination marks from `examinations`; attendance is not stored. The data is
 synthetic and deterministic.
 
+For a larger demonstration dataset, make a verified backup of the existing
+database, then run `python scripts\seed_academic_data.py`. It adds synthetic
+students up to 300, with four course enrollments and two exam results per
+enrollment. Starting from the checked-in sample, expected totals are 300
+students, 1,186 enrollments, and 2,360 examinations; the three departments and
+five courses are preserved. The seed script is safe to rerun. It marks its
+records using synthetic email identifiers and does not create attendance
+data.
+
+Useful questions for this schema include:
+
+- “How many students are in each department?”
+- “Show the ten students with the highest CGPA.”
+- “Count enrollments by course, semester, and academic year.”
+- “Show the grade distribution for each course.”
+- “Compare average examination marks by course and exam type.”
+
 ## Live desktop walkthrough
 
 | Step | User input or action | Expected behavior | What to point out |

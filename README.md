@@ -99,6 +99,24 @@ python scripts\init_db.py --database data\demo.db
 The initializer refuses to overwrite an existing file. Choose a new path if
 you want another copy. The sample data is synthetic and deterministic.
 
+## Expand the existing demonstration database
+
+To expand an existing database without recreating or replacing its tables,
+first make a verified backup. Then run the idempotent synthetic-data seeder:
+
+```powershell
+python scripts\seed_academic_data.py
+```
+
+The script adds synthetic students up to 300 and creates four course
+enrollments plus Midterm and Final examination records for each new student.
+It uses the existing CSE, ECE, and ME departments and course catalog, marks
+seeded rows with `synthetic.student.*@example.invalid` email addresses, and
+preserves existing records. It requires the existing academic schema and does
+not add attendance or other unsupported fields. Use `--database` to select a
+different existing database. Running the script again does not duplicate its
+seeded rows.
+
 ## Clarify a question and run a safe query
 
 With the selected provider configured, run the CLI:
