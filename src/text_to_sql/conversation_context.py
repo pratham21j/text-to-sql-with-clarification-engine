@@ -16,7 +16,7 @@ from text_to_sql.clarification_engine import (
     submit_clarification_answer,
 )
 from text_to_sql.database import DEFAULT_DATABASE_PATH
-from text_to_sql.llm_provider import GeminiProvider
+from text_to_sql.llm_provider import create_provider
 from text_to_sql.sql_executor import (
     DEFAULT_MAX_ROWS,
     DEFAULT_QUERY_TIMEOUT_SECONDS,
@@ -419,7 +419,7 @@ def process_user_question(
         raise ConversationStateError("User question must not be empty.")
 
     context = _context_for_model(state)
-    active_provider = provider if provider is not None else GeminiProvider()
+    active_provider = provider if provider is not None else create_provider()
     result = analyze_question(
         question,
         database_path,
@@ -487,7 +487,7 @@ def answer_conversation_clarification(
     if not retrying_last_answer:
         state.record_clarification_answer(answer)
 
-    active_provider = provider if provider is not None else GeminiProvider()
+    active_provider = provider if provider is not None else create_provider()
     result = submit_clarification_answer(
         current.original_question,
         pending_question,

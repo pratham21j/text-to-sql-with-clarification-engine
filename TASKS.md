@@ -146,6 +146,32 @@
 - [x] Run `git diff --check` and inspect final Git status and diff summary.
 - [x] Verify `.env` remains ignored/untracked, no environment files are packaged, and source/bundled database hashes match.
 
+## Phase 11: OpenAI Provider Integration
+
+- [x] Verify the official Responses API, strict structured-output contract, and `gpt-4.1-mini` endpoint support in current OpenAI documentation; do not make live API requests.
+- [x] Add the official OpenAI SDK as a runtime dependency and preserve the existing Gemini SDK.
+- [x] Add explicit `AI_PROVIDER` selection with OpenAI as the default and configurable `AI_MODEL`.
+- [x] Keep provider requests behind the existing `generate_json` contract and preserve SQL validation and read-only execution.
+- [x] Add mocked OpenAI tests for configuration, selection, response handling, errors, clarification, and conversation context.
+- [x] Update setup, launch, offline-test, billing, and troubleshooting documentation.
+- [x] Run the complete suite (164 passed, 1 skipped), compile check, dependency check, and diff check.
+- [x] Inspect the PyInstaller spec; provider SDK imports are static, so no hidden imports were added. Do not rebuild the executable as part of this change.
+- [x] Verify `.env` is Git-ignored; do not read or edit it, and do not modify the database.
+
+## Phase 12: OpenRouter Provider Integration
+
+- [x] Verify the OpenRouter Chat Completions endpoint and structured-output guidance; identify catalog candidates without making live API requests.
+- [x] Add OpenRouter as an explicit provider using the existing OpenAI-compatible SDK and strict JSON Schema response format.
+- [x] Preserve OpenAI and Gemini provider selection and ensure provider errors do not trigger fallback.
+- [x] Add mocked tests for configuration, provider selection, request/response handling, errors, clarification, and conversation context.
+- [x] Document OpenRouter setup, model selection caveats, packaging configuration, and troubleshooting.
+- [x] Run `python -m pytest` (181 passed, 1 skipped; one third-party deprecation warning).
+- [x] Run `python -m compileall -q src\text_to_sql scripts` (passed).
+- [x] Run `python -m pip check` (no broken requirements).
+- [x] Run `git diff --check` (passed).
+- [x] Inspect packaging implications; reuse the existing SDK, do not add a runtime dependency or rebuild the executable.
+- [x] Preserve the real `.env`, academic database, Git index, and existing worktree changes.
+
 ## Rules
 
 - Work through the phases in order.

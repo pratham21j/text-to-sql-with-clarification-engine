@@ -1,13 +1,16 @@
 # Viva demonstration guide
 
 This guide uses the synthetic academic database. It does not promise exact
-result rows because query wording and Gemini's interpretation can vary.
+result rows because query wording and model interpretation can vary.
 
 ## Prepare the demonstration
 
 For the live desktop flow, follow the source setup and launch instructions in
-the [README](../README.md), configure `GEMINI_API_KEY` and `GEMINI_MODEL`
-locally, and confirm that Gemini is reachable and has available quota. The
+the [README](../README.md), configure the selected provider locally, and confirm
+that the model is available to your API account with usable quota. OpenAI API
+usage may incur charges and is separate from a ChatGPT subscription. For
+OpenRouter, free-model availability and structured-output support vary by
+model and endpoint; check the current catalog and account limits. The
 application can open without making an API request, but asking a question
 requires the configured provider.
 
@@ -49,22 +52,22 @@ the test verifies the temporary database remains unchanged. Point out that
 generated SQL is parsed and checked before execution, and permitted queries
 also run through a read-only SQLite connection.
 
-## Offline preparation when Gemini is unavailable
+## Offline preparation when the configured provider is unavailable
 
 These checks use mocked model responses or temporary local databases and do
-not make live Gemini requests:
+not make live API requests:
 
 ```powershell
-python -m pytest tests\test_cli_workflow.py tests\test_desktop_app.py
+python -m pytest tests\test_cli_workflow.py tests\test_desktop_app.py tests\test_openai_provider.py tests\test_openrouter_provider.py
 python -m pytest tests\test_sql_executor.py tests\test_sql_generation.py
 ```
 
-The first command exercises the CLI and desktop workflow with mocked provider
-responses. Headless GUI tests cover formatting, results, export behavior, and
-error recovery; native window and file-dialog interaction depends on the
-desktop environment. The second command exercises schema, SQL validation,
-read-only execution, and row limits against test databases.
+The first command exercises the CLI, desktop, OpenAI, and OpenRouter workflows
+with mocked provider responses. Headless GUI tests cover formatting, results,
+export behavior, and error recovery; native window and file-dialog interaction
+depends on the desktop environment. The second command exercises schema, SQL
+validation, read-only execution, and row limits against test databases.
 
-These automated checks are not a substitute for the live Gemini-backed
+These automated checks are not a substitute for a live configured-provider
 walkthrough: they verify deterministic application behavior without depending
-on a live model response or API quota.
+on a live model response, account access, or API quota.

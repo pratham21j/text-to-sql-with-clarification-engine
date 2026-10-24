@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Mapping, Protocol, Sequence
 
 from text_to_sql.database import DEFAULT_DATABASE_PATH
-from text_to_sql.llm_provider import GeminiProvider
+from text_to_sql.llm_provider import create_provider
 from text_to_sql.sql_generator import (
     DatabaseSchema,
     SQLGenerationResult,
@@ -256,7 +256,7 @@ def _parse_model_response(response_text: str) -> tuple[
         payload = json.loads(response_text)
     except (json.JSONDecodeError, TypeError) as error:
         raise ClarificationResponseError(
-            "Gemini clarification response was not valid JSON."
+            "Model clarification response was not valid JSON."
         ) from error
 
     required_fields = {
@@ -271,7 +271,7 @@ def _parse_model_response(response_text: str) -> tuple[
         frozenset(required_fields | {"context_action"}),
     }:
         raise ClarificationResponseError(
-            "Gemini clarification response must contain exactly the required fields."
+            "Model clarification response must contain exactly the required fields."
         )
 
     status = payload["status"]
@@ -299,7 +299,7 @@ def _parse_model_response(response_text: str) -> tuple[
         or context_action not in {"refine", "replace"}
     ):
         raise ClarificationResponseError(
-            "Gemini clarification response contains fields with invalid types."
+            "Model clarification response contains fields with invalid types."
         )
 
     return (
@@ -457,7 +457,7 @@ def analyze_question(
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be a non-empty string.")
     schema = get_database_schema(database_path)
-    active_provider = provider if provider is not None else GeminiProvider()
+    active_provider = provider if provider is not None else create_provider()
     return _analyze(
         question,
         schema,
@@ -490,7 +490,7 @@ def submit_clarification_answer(
     prior_turns = tuple(_coerce_turn(turn) for turn in clarification_history)
     turns = (*prior_turns, ClarificationTurn(clarification_question, clarification_answer))
     schema = get_database_schema(database_path)
-    active_provider = provider if provider is not None else GeminiProvider()
+    active_provider = provider if provider is not None else create_provider()
     return _analyze(
         original_question,
         schema,

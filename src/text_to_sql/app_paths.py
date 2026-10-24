@@ -23,5 +23,5 @@ def resource_path(*parts: str) -> Path:
 
 
 def environment_file_path() -> Path:
-    """Locate user-owned Gemini configuration outside packaged resources."""
+    """Locate user-owned provider configuration outside packaged resources."""
     return application_directory() / ".env"

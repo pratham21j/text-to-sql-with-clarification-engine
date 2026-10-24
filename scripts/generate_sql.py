@@ -21,10 +21,14 @@ from text_to_sql.conversation_context import (
 )
 from text_to_sql.database import DEFAULT_DATABASE_PATH
 from text_to_sql.llm_provider import (
-    GeminiConfigurationError,
-    GeminiProvider,
     GeminiProviderError,
     GeminiRateLimitError,
+    OpenAIProviderError,
+    OpenAIRateLimitError,
+    OpenRouterProviderError,
+    OpenRouterRateLimitError,
+    ProviderConfigurationError,
+    create_provider,
 )
 from text_to_sql.sql_generator import InvalidModelResponseError
 from text_to_sql.sql_executor import DEFAULT_MAX_ROWS
@@ -35,7 +39,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Clarify a question when needed, then execute a validated "
-            "read-only SQL query using the configured Gemini model."
+            "read-only SQL query using the configured AI provider."
         )
     )
     parser.add_argument("question", help="natural-language database question")
@@ -56,7 +60,7 @@ def main() -> None:
         database_path = arguments.database
         if database_path is None:
             database_path = DEFAULT_DATABASE_PATH
-        provider = GeminiProvider()
+        provider = create_provider()
         conversation = create_conversation()
         while True:
             try:
@@ -67,7 +71,11 @@ def main() -> None:
                     provider=provider,
                 )
                 break
-            except GeminiRateLimitError as error:
+            except (
+                GeminiRateLimitError,
+                OpenAIRateLimitError,
+                OpenRouterRateLimitError,
+            ) as error:
                 if not _confirm_rate_limit_retry(error, "question analysis"):
                     raise
         while conversation.clarification_status in {
@@ -90,11 +98,22 @@ def main() -> None:
                         provider=provider,
                     )
                     break
-                except GeminiProviderError as error:
+                except (
+                    GeminiProviderError,
+                    OpenAIProviderError,
+                    OpenRouterProviderError,
+                ) as error:
                     retry_note = (
                         "Your clarification is retained. No automatic retry was "
                         "made; re-enter it only when you are ready to try again."
-                        if isinstance(error, GeminiRateLimitError)
+                        if isinstance(
+                            error,
+                            (
+                                GeminiRateLimitError,
+                                OpenAIRateLimitError,
+                                OpenRouterRateLimitError,
+                            ),
+                        )
                         else "Your clarification is retained. "
                         "Enter it again to retry, or press Ctrl+C to exit."
                     )
@@ -112,12 +131,18 @@ def main() -> None:
                     max_rows=arguments.max_rows,
                 )
                 break
-            except GeminiRateLimitError as error:
+            except (
+                GeminiRateLimitError,
+                OpenAIRateLimitError,
+                OpenRouterRateLimitError,
+            ) as error:
                 if not _confirm_rate_limit_retry(error, "SQL generation"):
                     raise
     except (
-        GeminiConfigurationError,
+        ProviderConfigurationError,
         GeminiProviderError,
+        OpenAIProviderError,
+        OpenRouterProviderError,
         InvalidModelResponseError,
         ClarificationResponseError,
         SQLValidationError,
@@ -142,7 +167,12 @@ def main() -> None:
     )
 
 
-def _confirm_rate_limit_retry(error: GeminiRateLimitError, operation: str) -> bool:
+def _confirm_rate_limit_retry(
+    error: (
+        GeminiRateLimitError | OpenAIRateLimitError | OpenRouterRateLimitError
+    ),
+    operation: str,
+) -> bool:
     print(
         f"{error}\nThe {operation} input and conversation are retained. "
         "No automatic retry was made.",

@@ -29,11 +29,16 @@ from text_to_sql.conversation_context import (
 )
 from text_to_sql.database import DEFAULT_DATABASE_PATH
 from text_to_sql.llm_provider import (
-    GeminiConfigurationError,
-    GeminiProvider,
     GeminiProviderError,
     GeminiQuotaError,
     GeminiRateLimitError,
+    OpenAIProviderError,
+    OpenAIQuotaError,
+    OpenAIRateLimitError,
+    OpenRouterProviderError,
+    OpenRouterRateLimitError,
+    ProviderConfigurationError,
+    create_provider,
 )
 from text_to_sql.sql_executor import DEFAULT_MAX_ROWS
 from text_to_sql.sql_generator import InvalidModelResponseError, get_database_schema
@@ -55,7 +60,7 @@ def process_desktop_message(
     max_rows: int = DEFAULT_MAX_ROWS,
 ) -> DesktopTurnResult:
     """Process a user turn and execute only after clarification is resolved."""
-    active_provider = provider if provider is not None else GeminiProvider()
+    active_provider = provider if provider is not None else create_provider()
     if conversation.clarification_status in {
         "clarification_needed",
         "unsupported",
@@ -129,6 +134,14 @@ def format_sql_preview(sql: str | None) -> str:
 
 def format_desktop_error(error: object) -> str:
     """Return a useful, credential-safe message for errors shown in the GUI."""
+    if isinstance(error, (OpenAIQuotaError, OpenAIRateLimitError)):
+        return str(error)
+    if isinstance(error, OpenRouterRateLimitError):
+        return str(error)
+    if isinstance(error, OpenAIProviderError):
+        return str(error)
+    if isinstance(error, OpenRouterProviderError):
+        return str(error)
     if isinstance(error, GeminiQuotaError):
         return str(error)
     if isinstance(error, GeminiRateLimitError):
@@ -156,7 +169,7 @@ def format_desktop_error(error: object) -> str:
             "conversation are preserved; try again when ready."
         )
     if isinstance(error, (
-        GeminiConfigurationError,
+        ProviderConfigurationError,
         InvalidModelResponseError,
         ClarificationResponseError,
         SQLValidationError,

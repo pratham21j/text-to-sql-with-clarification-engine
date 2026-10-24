@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Protocol
 
 from text_to_sql.database import DEFAULT_DATABASE_PATH
-from text_to_sql.llm_provider import GeminiProvider
+from text_to_sql.llm_provider import create_provider
 from text_to_sql.sql_validator import validate_read_only_sql
 
 
@@ -185,7 +185,7 @@ def _parse_result(
         payload = json.loads(response_text)
     except (json.JSONDecodeError, TypeError) as error:
         raise InvalidModelResponseError(
-            "Gemini response was not valid JSON."
+            "Model response was not valid JSON."
         ) from error
 
     required_keys = {
@@ -196,7 +196,7 @@ def _parse_result(
     }
     if not isinstance(payload, dict) or set(payload) != required_keys:
         raise InvalidModelResponseError(
-            "Gemini response must contain exactly the required response fields."
+            "Model response must contain exactly the required response fields."
         )
 
     status = payload["status"]
@@ -216,17 +216,17 @@ def _parse_result(
         )
     ):
         raise InvalidModelResponseError(
-            "Gemini response fields have invalid types."
+            "Model response fields have invalid types."
         )
 
     if status == "clarification_needed" and clarification_needed:
         if generated_sql not in (None, ""):
             raise InvalidModelResponseError(
-                "Gemini must not return SQL when clarification is needed."
+                "Model must not return SQL when clarification is needed."
             )
         if not ambiguity_reason or not ambiguity_reason.strip():
             raise InvalidModelResponseError(
-                "Gemini must explain why clarification is needed."
+                "Model must explain why clarification is needed."
             )
         return SQLGenerationResult(
             status=status,
@@ -237,15 +237,15 @@ def _parse_result(
 
     if status != "ready" or clarification_needed:
         raise InvalidModelResponseError(
-            "Gemini returned an unsupported or inconsistent status."
+            "Model returned an unsupported or inconsistent status."
         )
     if not generated_sql or not generated_sql.strip():
         raise InvalidModelResponseError(
-            "Gemini must return SQL when clarification is not needed."
+            "Model must return SQL when clarification is not needed."
         )
     if ambiguity_reason not in (None, ""):
         raise InvalidModelResponseError(
-            "Gemini must not return an ambiguity reason for a ready query."
+            "Model must not return an ambiguity reason for a ready query."
         )
 
     validated_sql = validate_read_only_sql(
@@ -266,12 +266,12 @@ def generate_sql(
     *,
     provider: StructuredResponseProvider | None = None,
 ) -> SQLGenerationResult:
-    """Retrieve live SQLite schema and ask Gemini for a validated SQL result."""
+    """Retrieve live SQLite schema and ask the selected provider for SQL."""
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be a non-empty string.")
 
     schema = get_database_schema(database_path)
-    active_provider = provider if provider is not None else GeminiProvider()
+    active_provider = provider if provider is not None else create_provider()
     response_text = active_provider.generate_json(
         _build_prompt(question.strip(), schema),
         _RESPONSE_SCHEMA,

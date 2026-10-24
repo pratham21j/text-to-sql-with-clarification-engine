@@ -68,7 +68,7 @@ class _MockProvider:
 def _run_cli(monkeypatch, tmp_path, provider, answers):
     database_path = initialize_database(tmp_path / "academic.db")
     inputs = iter(answers)
-    monkeypatch.setattr(cli, "GeminiProvider", lambda: provider)
+    monkeypatch.setattr(cli, "create_provider", lambda: provider)
     monkeypatch.setattr(
         sys,
         "argv",

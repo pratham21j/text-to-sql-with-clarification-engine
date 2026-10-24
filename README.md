@@ -2,7 +2,7 @@
 
 A Windows desktop project that turns natural-language questions into safe
 SQLite queries. Phases 1–5 establish the project, synthetic academic database,
-Gemini provider, validated SQL generation, schema-grounded clarification,
+configurable LLM providers, validated SQL generation, schema-grounded clarification,
 explicit conversation context, and bounded read-only query execution. Phase 6
 adds the CustomTkinter desktop interface.
 
@@ -14,10 +14,10 @@ ambiguous, and carries resolved context into follow-up questions. It previews
 validated SQL, executes supported read-only queries with a row cap, and displays
 results in a table that can be exported to CSV.
 
-The project uses Python, CustomTkinter, SQLite, the official `google-genai`
-SDK, SQLGlot, `python-dotenv`, pytest, Git, and PyInstaller. Gemini is used only
-for question analysis and SQL generation; SQLite execution and result display
-are local.
+The project uses Python, CustomTkinter, SQLite, the official OpenAI SDK,
+`google-genai`, SQLGlot, `python-dotenv`, pytest, Git, and PyInstaller.
+The selected provider is used only for question analysis and SQL generation;
+SQL validation, execution, and result display remain local.
 
 ## Requirements
 
@@ -34,11 +34,55 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-If `.env` does not already exist, copy `.env.example` to `.env`. Configure
-`GEMINI_API_KEY` and `GEMINI_MODEL` in `.env` or as environment variables. The
-provider requires both values and does not substitute a default model. Preserve
-an existing `.env` when setting up. Keep it private; `.env` is excluded by
-`.gitignore`.
+If `.env` does not already exist, copy `.env.example` to `.env`. The default
+provider is OpenAI. Configure these values in `.env` or as environment
+variables:
+
+```text
+AI_PROVIDER=openai
+AI_MODEL=gpt-4.1-mini
+OPENAI_API_KEY=your_openai_api_key
+```
+
+The [GPT-4.1 mini model documentation](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+lists `gpt-4.1-mini` as supporting the [Responses
+API](https://developers.openai.com/api/reference/resources/responses/methods/create)
+and [structured
+outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+The OpenAI provider uses the Responses API with strict JSON-schema output;
+model responses still go through the application's existing validation and
+read-only SQLite execution path.
+Model access and API quota are account-specific and cannot be verified without
+an authenticated API request; no request is made during setup or automated
+tests. OpenAI API usage may incur charges. A ChatGPT subscription does not
+provide API credits.
+
+To explicitly select the retained Gemini provider instead, set
+`AI_PROVIDER=gemini` and configure `GEMINI_API_KEY` and `GEMINI_MODEL`. The
+application does not fall back to another provider if the selected provider
+fails. Preserve an existing `.env` when setting up. Keep it private; `.env` is
+excluded by `.gitignore`.
+
+To use OpenRouter, create an API key in your OpenRouter account and set:
+
+```text
+AI_PROVIDER=openrouter
+AI_MODEL=xingchen-agi/xing4.0-29b-a4b:free
+OPENROUTER_API_KEY=your_openrouter_api_key
+```
+
+The OpenRouter provider uses the OpenAI-compatible Chat Completions endpoint
+with strict JSON Schema output. The model catalog's structured-output filter
+listed `xingchen-agi/xing4.0-29b-a4b:free` and
+`nvidia/nemotron-3.5-super-vl:free` as free candidates when checked. These are
+examples, not a guarantee of continued availability, free access, account
+eligibility, or support from every provider endpoint. Check the current
+[structured outputs guide](https://openrouter.ai/docs/guides/features/structured-outputs)
+and [model catalog](https://openrouter.ai/models) before selecting a model.
+The provider requires endpoint support for the requested parameters and
+reports an error instead of silently falling back when the model or feature is
+unavailable. OpenRouter account limits and model routing can change; no live
+request is made during setup or automated tests.
 
 ## Create the demonstration database
 
@@ -57,7 +101,7 @@ you want another copy. The sample data is synthetic and deterministic.
 
 ## Clarify a question and run a safe query
 
-With Gemini configuration in place, run the CLI:
+With the selected provider configured, run the CLI:
 
 ```powershell
 python scripts\generate_sql.py "Show students with good marks."
@@ -90,8 +134,8 @@ python scripts\generate_sql.py --max-rows 250 "Show all CSE students."
 ## Launch the desktop application
 
 After installing the requirements, initializing `data\academic.db`, and
-configuring `GEMINI_API_KEY` and `GEMINI_MODEL` as described above, launch the
-CustomTkinter application from the project root:
+configuring the selected provider as described above, launch the CustomTkinter
+application from the project root:
 
 ```powershell
 python scripts\run_desktop.py
@@ -142,10 +186,14 @@ the first question, create a user-owned `.env` file beside
 `TextToSQL.exe` (or set the same variables in the process environment):
 
 ```text
-GEMINI_API_KEY=your-own-key
-GEMINI_MODEL=your-configured-model
+AI_PROVIDER=openai
+AI_MODEL=gpt-4.1-mini
+OPENAI_API_KEY=your_openai_api_key
 ```
 
+For Gemini, use `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `GEMINI_MODEL`
+instead. For OpenRouter, use `AI_PROVIDER=openrouter`,
+`OPENROUTER_API_KEY`, and set `AI_MODEL` to a currently compatible model ID.
 Keep this file private. The configured model is read at runtime, the same as
 in source runs. Extract the distribution to a folder where you can maintain
 this local configuration. Do not copy a real `.env` into `dist` or rebuild
@@ -163,7 +211,7 @@ another database requires launching the source application with that path
 through `TextToSQLDesktopApp(database_path=...)`.
 
 The window provides a conversation view, a message field, a new-conversation
-button, a SQL preview, and a results table. While Gemini or SQLite is working,
+button, a SQL preview, and a results table. While the configured provider or SQLite is working,
 the request runs in a background thread, the interface displays a loading
 status, and duplicate submissions are disabled. When a question needs
 clarification, answer in the same input field; the answer and original request
@@ -181,13 +229,13 @@ header shows the configured database path and table names when the database is
 available. User and assistant messages have distinct visual styles. The GUI
 does not persist conversation state to disk.
 
-Recoverable Gemini failures restore the submitted message for a manual retry
+Recoverable provider failures restore the submitted message for a manual retry
 and preserve pending clarification context. Quota exhaustion is not
 automatically retried. HTTP 503, invalid-request, and network failures are
 reported with user-facing guidance without displaying provider diagnostics or
 credentials.
 
-Clarification analysis and each answer are sent to the configured Gemini model.
+Clarification analysis and each answer are sent to the configured provider.
 Once resolved, the original question, prior resolved request, and all
 clarification turns are included in the SQL-generation request. The SQL is
 validated both during generation and again immediately before execution.
@@ -202,14 +250,17 @@ clipboard and save-dialog behavior still depends on the user's desktop
 environment. Phase 9 adds a reproducible one-folder PyInstaller build
 configuration; package build and launch status are tracked in `TASKS.md`.
 
-### Gemini quota and rate limits
+### Provider authentication, quota, and rate limits
 
-HTTP 429 responses that explicitly indicate exhausted quota are reported as
-quota errors. If Gemini supplies a retry delay, the CLI and desktop show it as
-an approximate provider suggestion, not a guaranteed quota-reset time. Quota
-errors are never automatically retried or slept through. Short rate limits may
-be retried only when the provider supplies a delay of at most five seconds;
-longer rate limits require a manual retry.
+OpenAI authentication failures explain that `OPENAI_API_KEY` and API project
+access should be checked. OpenRouter authentication failures identify
+`OPENROUTER_API_KEY`; HTTP 402 and quota errors direct users to check account
+credits or free-tier limits. Unsupported JSON Schema output and unavailable
+models are reported so a compatible model can be selected. Rate limits are
+reported with any supplied retry delay, but are not automatically retried.
+Temporary service failures are surfaced for a user-initiated retry. Gemini
+retains its existing bounded handling of transient failures and its separate
+quota/rate-limit messages. No provider silently falls back to another.
 
 The CLI keeps the original question or resolved conversation available while
 it is running and asks for explicit confirmation before retrying question
@@ -222,13 +273,14 @@ persisted across application restarts.
 ## Demonstration guide
 
 See [docs/demo-guide.md](./docs/demo-guide.md) for a reproducible viva
-walkthrough, including a Gemini-backed desktop flow and separate mocked and
+walkthrough, including a configured-provider desktop flow and separate mocked and
 local-only checks for use when the API is unavailable.
 
 ## Conversation context and follow-ups
 
 Create a conversation to keep turns isolated. A follow-up that refers to
-previous results is analyzed with the active resolved request; Gemini is asked
+previous results is analyzed with the active resolved request; the configured
+provider is asked
 to preserve existing filters when sorting or limiting results. A follow-up
 without an earlier resolved request receives no invented context and should be
 clarified instead. A self-contained unrelated question can become the new
@@ -315,6 +367,9 @@ result has no partial rows or columns.
 
 ## Run the tests
 
+Provider calls are mocked in the automated tests; a real API key is not
+required and no live API requests are made.
+
 ```powershell
 python -m pytest
 ```
@@ -333,9 +388,10 @@ requirements*.txt         Runtime, test, and packaging dependencies
 
 ## Current limitations
 
-Follow-up interpretation is Gemini-backed and depends on the quality of the
-configured model's response; automated tests use mocks, and live API behavior
-has not been verified. Conversation snapshots are serializable, but the CLI
+Follow-up interpretation depends on the quality and availability of the
+configured provider and model; automated tests use mocks, and live API behavior
+and account-specific model access have not been verified. API access and billing
+are separate from any ChatGPT subscription. Conversation snapshots are serializable, but the CLI
 and GUI do not persist conversation state to disk. Returned results are
 capped and no total-match count is computed when truncated. PyInstaller output
 is a Windows one-folder distribution and must be built on Windows. The
@@ -344,6 +400,6 @@ database is bundled read-only and alternate databases currently require the
 source application's `database_path` argument.
 
 This is an educational demonstration, not a production security guarantee.
-Question and clarification text plus schema metadata are sent to the configured
-Gemini provider; database query results are executed and displayed locally.
+Question and clarification text plus schema metadata are sent to the selected
+provider; database query results are executed and displayed locally.
 Do not submit confidential information or connect sensitive databases.
