@@ -228,13 +228,16 @@ The packaged executable uses its bundled starter database by default; using
 another database requires launching the source application with that path
 through `TextToSQLDesktopApp(database_path=...)`.
 
-The window provides a conversation view, a message field, a new-conversation
-button, a SQL preview, and a results table. While the configured provider or SQLite is working,
-the request runs in a background thread, the interface displays a loading
-status, and duplicate submissions are disabled. When a question needs
-clarification, answer in the same input field; the answer and original request
-remain in the active conversation context. Starting a new conversation clears
-the displayed history and creates an isolated conversation state.
+The window uses a professional dark theme with a project header, conversation
+panel, large multiline question field, generated-SQL preview, and scrollable
+results table. Submit with the **Generate Query** button or Ctrl+Enter. While
+the configured provider or SQLite is working, the request runs in a background
+thread, the interface displays a loading status, and duplicate submissions are
+disabled. When a question needs clarification, the question is highlighted and
+the same input field becomes the clarification answer field; the answer and
+original request remain in the active conversation context. Starting a new
+conversation clears the displayed history and creates an isolated conversation
+state.
 
 Only the existing conversation workflow generates, validates, and executes SQL.
 Unresolved clarification blocks generation and execution. Results show the

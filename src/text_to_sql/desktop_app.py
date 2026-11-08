@@ -195,9 +195,9 @@ class TextToSQLDesktopApp(ctk.CTk):
     ) -> None:
         super().__init__()
         self.title("Text-to-SQL Clarification Engine")
-        self.geometry("1180x760")
-        self.minsize(900, 600)
-        ctk.set_appearance_mode("light")
+        self.geometry("1240x820")
+        self.minsize(900, 640)
+        ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
         self.database_path = Path(database_path)
@@ -210,8 +210,8 @@ class TextToSQLDesktopApp(ctk.CTk):
         self._displayed_columns: tuple[str, ...] = ()
         self._displayed_rows: tuple[tuple[object, ...], ...] = ()
 
-        self.grid_columnconfigure(0, weight=3)
-        self.grid_columnconfigure(1, weight=2)
+        self.grid_columnconfigure(0, weight=1, uniform="main")
+        self.grid_columnconfigure(1, weight=1, uniform="main")
         self.grid_rowconfigure(1, weight=1)
 
         self._build_header()
@@ -227,74 +227,105 @@ class TextToSQLDesktopApp(ctk.CTk):
         self.after(100, self._poll_worker_results)
 
     def _build_header(self) -> None:
-        header = ctk.CTkFrame(self, corner_radius=0)
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=16, pady=(14, 10))
+        header = ctk.CTkFrame(self, corner_radius=14)
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=18, pady=(18, 12))
         header.grid_columnconfigure(0, weight=1)
 
         title = ctk.CTkLabel(
             header,
-            text="Text-to-SQL Clarification Engine",
-            font=ctk.CTkFont(size=22, weight="bold"),
+            text="TEXT-TO-SQL WITH CLARIFICATION ENGINE",
+            font=ctk.CTkFont(size=21, weight="bold"),
+            anchor="w",
         )
-        title.grid(row=0, column=0, sticky="w", padx=16, pady=(12, 2))
+        title.grid(row=0, column=0, sticky="w", padx=20, pady=(16, 2))
+        subtitle = ctk.CTkLabel(
+            header,
+            text="Natural Language Database Query System",
+            text_color=("#64748B", "#A7B3C5"),
+            font=ctk.CTkFont(size=13),
+            anchor="w",
+        )
+        subtitle.grid(row=1, column=0, sticky="w", padx=20, pady=(0, 8))
         self.conversation_label = ctk.CTkLabel(
             header,
             text="",
-            text_color=("gray45", "gray70"),
+            text_color=("#64748B", "#A7B3C5"),
+            font=ctk.CTkFont(size=11),
         )
-        self.conversation_label.grid(row=1, column=0, sticky="w", padx=16, pady=(0, 12))
+        self.conversation_label.grid(row=2, column=0, sticky="w", padx=20, pady=(0, 14))
         self.database_info_label = ctk.CTkLabel(
             header,
             text=self._database_description(),
-            text_color=("gray45", "gray70"),
+            text_color=("#64748B", "#8996A8"),
             anchor="w",
             justify="left",
-            wraplength=760,
+            wraplength=680,
+            font=ctk.CTkFont(size=10),
         )
         self.database_info_label.grid(
-            row=2,
+            row=3,
             column=0,
             columnspan=2,
             sticky="ew",
-            padx=16,
-            pady=(0, 10),
+            padx=20,
+            pady=(0, 14),
         )
+        self.ready_indicator = ctk.CTkLabel(
+            header,
+            text="READY",
+            text_color="#86EFAC",
+            fg_color=("#DCFCE7", "#163627"),
+            corner_radius=12,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            padx=12,
+            pady=6,
+        )
+        self.ready_indicator.grid(row=0, column=1, sticky="e", padx=(8, 20), pady=(16, 6))
         self.new_conversation_button = ctk.CTkButton(
             header,
-            text="New conversation",
+            text="Clear Conversation",
             command=self.new_conversation,
-            width=150,
+            width=154,
+            height=36,
         )
         self.new_conversation_button.grid(
-            row=0, column=1, rowspan=2, padx=16, pady=12
+            row=1, column=1, rowspan=2, padx=(8, 20), pady=(0, 14)
         )
 
     def _build_chat(self) -> None:
-        chat_frame = ctk.CTkFrame(self)
-        chat_frame.grid(row=1, column=0, sticky="nsew", padx=(16, 8), pady=(0, 12))
+        chat_frame = ctk.CTkFrame(self, corner_radius=14)
+        chat_frame.grid(row=1, column=0, sticky="nsew", padx=(18, 8), pady=(0, 18))
         chat_frame.grid_columnconfigure(0, weight=1)
-        chat_frame.grid_rowconfigure(0, weight=1)
+        chat_frame.grid_rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            chat_frame,
+            text="Conversation",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 4))
 
         self.chat_display = ctk.CTkTextbox(
             chat_frame,
             wrap="word",
-            font=ctk.CTkFont(size=14),
+            font=ctk.CTkFont(size=13),
             activate_scrollbars=True,
+            corner_radius=10,
         )
         self.chat_display.tag_config(
             "user_label",
-            foreground="#145DA0",
+            foreground="#60A5FA",
             underline=True,
         )
         self.chat_display.tag_config(
             "assistant_label",
-            foreground="#475569",
+            foreground="#AAB8CA",
             underline=True,
         )
         self.chat_display.tag_config(
             "user_message",
-            foreground="#153E75",
-            background="#EAF3FF",
+            foreground="#DBEAFE",
+            background="#172B46",
             lmargin1=12,
             lmargin2=12,
             rmargin=24,
@@ -303,115 +334,202 @@ class TextToSQLDesktopApp(ctk.CTk):
         )
         self.chat_display.tag_config(
             "assistant_message",
-            foreground="#1F2937",
-            background="#F1F5F9",
+            foreground="#E2E8F0",
+            background="#202B3A",
             lmargin1=12,
             lmargin2=12,
             rmargin=24,
             spacing1=4,
             spacing3=10,
         )
-        self.chat_display.grid(row=0, column=0, sticky="nsew", padx=12, pady=12)
+        self.chat_display.grid(row=1, column=0, sticky="nsew", padx=14, pady=(4, 10))
         self.chat_display.configure(state="disabled")
 
-        composer = ctk.CTkFrame(chat_frame, fg_color="transparent")
-        composer.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 12))
-        composer.grid_columnconfigure(0, weight=1)
-        self.message_entry = ctk.CTkEntry(
-            composer,
-            placeholder_text="Ask about students, courses, or examinations...",
-            height=42,
-            font=ctk.CTkFont(size=14),
+        self.clarification_panel = ctk.CTkFrame(
+            chat_frame,
+            corner_radius=10,
+            border_width=1,
+            border_color=("#93C5FD", "#315A83"),
+            fg_color=("#EFF6FF", "#17283B"),
         )
-        self.message_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        self.message_entry.bind("<Return>", self._on_enter)
+        self.clarification_panel.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 10))
+        self.clarification_panel.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            self.clarification_panel,
+            text="CLARIFICATION NEEDED",
+            text_color=("#1D4ED8", "#93C5FD"),
+            font=ctk.CTkFont(size=10, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=12, pady=(9, 2))
+        self.clarification_question_label = ctk.CTkLabel(
+            self.clarification_panel,
+            text="",
+            anchor="w",
+            justify="left",
+            wraplength=360,
+            font=ctk.CTkFont(size=12),
+        )
+        self.clarification_question_label.grid(
+            row=1, column=0, sticky="ew", padx=12, pady=(0, 9)
+        )
+        self.clarification_panel.grid_remove()
+
+        composer = ctk.CTkFrame(chat_frame, fg_color="transparent")
+        composer.grid(row=3, column=0, sticky="ew", padx=14, pady=(0, 8))
+        composer.grid_columnconfigure(0, weight=1)
+        self.message_hint = ctk.CTkLabel(
+            composer,
+            text="Ask a question about the academic database. Ctrl+Enter to submit.",
+            anchor="w",
+            text_color=("#64748B", "#A7B3C5"),
+            font=ctk.CTkFont(size=10),
+        )
+        self.message_hint.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        self.message_entry = ctk.CTkTextbox(
+            composer,
+            height=96,
+            wrap="word",
+            font=ctk.CTkFont(size=13),
+            corner_radius=10,
+            activate_scrollbars=True,
+        )
+        self.message_entry.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        self.message_entry.bind("<Control-Return>", self._on_enter)
         self.send_button = ctk.CTkButton(
             composer,
-            text="Send",
+            text="Generate Query",
             command=self.submit_message,
-            width=100,
-            height=42,
+            width=148,
+            height=38,
         )
-        self.send_button.grid(row=0, column=1)
+        self.send_button.grid(row=2, column=0, sticky="e")
 
         self.status_label = ctk.CTkLabel(
             chat_frame,
             text="Ready",
             anchor="w",
-            text_color=("gray45", "gray70"),
+            text_color=("#64748B", "#A7B3C5"),
+            font=ctk.CTkFont(size=11),
         )
-        self.status_label.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 10))
+        self.status_label.grid(row=4, column=0, sticky="ew", padx=16, pady=(0, 12))
 
     def _build_results_panel(self) -> None:
-        panel = ctk.CTkFrame(self)
-        panel.grid(row=1, column=1, sticky="nsew", padx=(8, 16), pady=(0, 12))
+        panel = ctk.CTkFrame(self, corner_radius=14)
+        panel.grid(row=1, column=1, sticky="nsew", padx=(8, 18), pady=(0, 18))
         panel.grid_columnconfigure(0, weight=1)
-        panel.grid_rowconfigure(4, weight=1)
+        panel.grid_rowconfigure(5, weight=1)
 
         ctk.CTkLabel(
             panel,
-            text="SQL preview",
+            text="Generated SQL",
             font=ctk.CTkFont(size=16, weight="bold"),
             anchor="w",
-        ).grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+        ).grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 4))
+        ctk.CTkLabel(
+            panel,
+            text="Validated read-only query",
+            text_color=("#64748B", "#A7B3C5"),
+            font=ctk.CTkFont(size=11),
+            anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 8))
         self.sql_preview = ctk.CTkTextbox(
             panel,
-            height=135,
+            height=128,
             wrap="word",
             font=ctk.CTkFont(family="Consolas", size=12),
+            corner_radius=10,
         )
-        self.sql_preview.grid(row=1, column=0, sticky="ew", padx=12)
+        self.sql_preview.grid(row=2, column=0, sticky="ew", padx=14)
         self.sql_preview.configure(state="disabled")
 
         sql_actions = ctk.CTkFrame(panel, fg_color="transparent")
-        sql_actions.grid(row=2, column=0, sticky="ew", padx=12, pady=(6, 0))
-        sql_actions.grid_columnconfigure(2, weight=1)
+        sql_actions.grid(row=3, column=0, sticky="ew", padx=14, pady=(6, 0))
+        sql_actions.grid_columnconfigure(1, weight=1)
         self.copy_sql_button = ctk.CTkButton(
             sql_actions,
             text="Copy SQL",
             command=self.copy_sql,
             width=100,
-            height=32,
+            height=30,
             state="disabled",
         )
-        self.copy_sql_button.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.copy_sql_button.grid(row=0, column=0, sticky="w")
         self.sql_action_status_label = ctk.CTkLabel(
             sql_actions,
             text="",
-            anchor="w",
-            text_color=("gray45", "gray70"),
+            anchor="e",
+            text_color=("#64748B", "#A7B3C5"),
+            font=ctk.CTkFont(size=10),
         )
-        self.sql_action_status_label.grid(row=0, column=1, sticky="ew")
+        self.sql_action_status_label.grid(row=0, column=1, sticky="ew", padx=(8, 0))
 
         results_summary = ctk.CTkFrame(panel, fg_color="transparent")
-        results_summary.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 0))
+        results_summary.grid(row=4, column=0, sticky="ew", padx=14, pady=(14, 6))
         results_summary.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            results_summary,
+            text="Query Results",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", pady=(0, 4))
         self.execution_status_label = ctk.CTkLabel(
             results_summary,
             text="No query executed",
             anchor="w",
             wraplength=340,
+            text_color=("#64748B", "#A7B3C5"),
+            font=ctk.CTkFont(size=11),
         )
-        self.execution_status_label.grid(row=0, column=0, sticky="ew")
+        self.execution_status_label.grid(row=1, column=0, sticky="ew")
         self.export_csv_button = ctk.CTkButton(
             results_summary,
             text="Export CSV",
             command=self.export_results_csv,
             width=100,
-            height=32,
+            height=30,
             state="disabled",
         )
-        self.export_csv_button.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self.export_csv_button.grid(row=0, column=1, rowspan=2, sticky="e", padx=(8, 0))
 
-        table_frame = ctk.CTkFrame(panel)
-        table_frame.grid(row=4, column=0, sticky="nsew", padx=12, pady=(4, 8))
+        table_frame = ctk.CTkFrame(panel, corner_radius=10)
+        table_frame.grid(row=5, column=0, sticky="nsew", padx=14, pady=(0, 14))
         table_frame.grid_columnconfigure(0, weight=1)
         table_frame.grid_rowconfigure(0, weight=1)
         style = ttk.Style(self)
-        style.configure("Result.Treeview", rowheight=26, font=("Segoe UI", 10))
+        style.theme_use("clam")
+        style.configure(
+            "Result.Treeview",
+            rowheight=28,
+            font=("Segoe UI", 10),
+            background="#111827",
+            fieldbackground="#111827",
+            foreground="#E2E8F0",
+            borderwidth=0,
+        )
         style.configure(
             "Result.Treeview.Heading",
             font=("Segoe UI", 10, "bold"),
+            background="#263449",
+            foreground="#F8FAFC",
+            relief="flat",
+        )
+        style.map(
+            "Result.Treeview",
+            background=[("selected", "#1D4ED8")],
+            foreground=[("selected", "#FFFFFF")],
+        )
+        style.map(
+            "Result.Treeview.Heading",
+            background=[("active", "#34465F")],
+            foreground=[("active", "#FFFFFF")],
+        )
+        style.configure(
+            "TScrollbar",
+            background="#263449",
+            troughcolor="#111827",
+            bordercolor="#111827",
+            arrowcolor="#CBD5E1",
+            relief="flat",
         )
         self.result_table = ttk.Treeview(
             table_frame,
@@ -443,13 +561,13 @@ class TextToSQLDesktopApp(ctk.CTk):
     def submit_message(self) -> None:
         if self._busy:
             return
-        message = self.message_entry.get().strip()
+        message = self._get_message_text().strip()
         if not message:
             return
 
         pending = self.conversation.clarification_status in self._PENDING_STATUSES
         self._append_message("you", message)
-        self.message_entry.delete(0, "end")
+        self._clear_message_text()
         self._set_busy(True, "Resolving your request..." if not pending else "Checking your answer...")
         self._clear_results()
         worker = threading.Thread(
@@ -501,17 +619,16 @@ class TextToSQLDesktopApp(ctk.CTk):
             question = clarification.clarification_question or (
                 "Please clarify the request."
             )
+            self.clarification_question_label.configure(text=question)
+            self.clarification_panel.grid()
+            self._update_input_mode(pending=True)
             self._append_message("assistant", question)
-            self.message_entry.configure(
-                placeholder_text="Type your clarification answer..."
-            )
             self._set_busy(False, "Clarification needed")
             self.message_entry.focus_set()
             return
 
-        self.message_entry.configure(
-            placeholder_text="Ask a question or refine the previous request..."
-        )
+        self.clarification_panel.grid_remove()
+        self._update_input_mode(pending=False)
         if payload.execution is None:
             self._show_error(RuntimeError("No execution result was returned."))
             return
@@ -598,8 +715,8 @@ class TextToSQLDesktopApp(ctk.CTk):
                 values=tuple("" if value is None else str(value) for value in row),
                 tags=("evenrow" if index % 2 == 0 else "oddrow",),
             )
-        self.result_table.tag_configure("evenrow", background="#FFFFFF")
-        self.result_table.tag_configure("oddrow", background="#F4F7FB")
+        self.result_table.tag_configure("evenrow", background="#111827")
+        self.result_table.tag_configure("oddrow", background="#182338")
 
     def _show_error(
         self,
@@ -610,12 +727,41 @@ class TextToSQLDesktopApp(ctk.CTk):
         message = format_desktop_error(error)
         self._append_message("assistant", f"Unable to complete the request: {message}")
         self.execution_status_label.configure(text=message)
-        if retry_message and not self.message_entry.get().strip():
-            self.message_entry.insert(0, retry_message)
+        if retry_message and not self._get_message_text().strip():
+            self._set_message_text(retry_message)
         self._set_busy(False, "Request failed")
-        self.message_entry.configure(
-            placeholder_text="Ask a question or refine the previous request..."
+        self._update_input_mode(
+            pending=self.conversation.clarification_status in self._PENDING_STATUSES
         )
+
+    def _get_message_text(self) -> str:
+        if isinstance(self.message_entry, ctk.CTkTextbox):
+            return self.message_entry.get("1.0", "end-1c")
+        return self.message_entry.get()
+
+    def _clear_message_text(self) -> None:
+        if isinstance(self.message_entry, ctk.CTkTextbox):
+            self.message_entry.delete("1.0", "end")
+        else:
+            self.message_entry.delete(0, "end")
+
+    def _set_message_text(self, message: str) -> None:
+        if isinstance(self.message_entry, ctk.CTkTextbox):
+            self.message_entry.insert("1.0", message)
+        else:
+            self.message_entry.insert(0, message)
+
+    def _update_input_mode(self, *, pending: bool) -> None:
+        if pending:
+            self.message_hint.configure(
+                text="Enter your clarification answer below. Ctrl+Enter to submit."
+            )
+            self.send_button.configure(text="Submit Clarification")
+        else:
+            self.message_hint.configure(
+                text="Ask a question about the academic database. Ctrl+Enter to submit."
+            )
+            self.send_button.configure(text="Generate Query")
 
     def _append_message(self, role: str, message: str) -> None:
         is_user = role.casefold() in {"you", "user"}
@@ -715,6 +861,11 @@ class TextToSQLDesktopApp(ctk.CTk):
         self.message_entry.configure(state=widget_state)
         self.new_conversation_button.configure(state=widget_state)
         self.status_label.configure(text=status)
+        self.ready_indicator.configure(
+            text="PROCESSING" if busy else "READY",
+            text_color="#BFDBFE" if busy else "#86EFAC",
+            fg_color=("#DBEAFE", "#1E3A5F") if busy else ("#DCFCE7", "#163627"),
+        )
 
     def new_conversation(self) -> None:
         if self._busy:
@@ -723,9 +874,9 @@ class TextToSQLDesktopApp(ctk.CTk):
         self.chat_display.configure(state="normal")
         self.chat_display.delete("1.0", "end")
         self.chat_display.configure(state="disabled")
-        self.message_entry.configure(
-            placeholder_text="Ask about students, courses, or examinations..."
-        )
+        self._clear_message_text()
+        self.clarification_panel.grid_remove()
+        self._update_input_mode(pending=False)
         self._clear_results()
         self._append_message(
             "assistant",

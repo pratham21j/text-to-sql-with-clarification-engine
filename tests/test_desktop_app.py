@@ -242,7 +242,12 @@ def test_desktop_quota_error_restores_submitted_text_for_manual_retry():
     messages = []
     status_changes = []
     app = SimpleNamespace(
+        _PENDING_STATUSES=TextToSQLDesktopApp._PENDING_STATUSES,
         message_entry=entry,
+        _get_message_text=entry.get,
+        _set_message_text=lambda value: entry.insert(0, value),
+        _update_input_mode=lambda **_kwargs: None,
+        conversation=SimpleNamespace(clarification_status="clear"),
         execution_status_label=_Label(),
         _append_message=lambda role, text: messages.append((role, text)),
         _set_busy=lambda busy, status: status_changes.append((busy, status)),
@@ -262,6 +267,29 @@ def test_desktop_quota_error_restores_submitted_text_for_manual_retry():
     assert entry.value == "Show the 5 best students."
     assert "No automatic retry was made." in messages[0][1]
     assert status_changes == [(False, "Request failed")]
+
+
+def test_desktop_input_mode_labels_question_and_clarification_actions():
+    class _Widget:
+        def __init__(self):
+            self.options = {}
+
+        def configure(self, **options):
+            self.options.update(options)
+
+    hint = _Widget()
+    button = _Widget()
+    app = SimpleNamespace(message_hint=hint, send_button=button)
+
+    TextToSQLDesktopApp._update_input_mode(app, pending=True)
+
+    assert button.options["text"] == "Submit Clarification"
+    assert "clarification answer" in hint.options["text"]
+
+    TextToSQLDesktopApp._update_input_mode(app, pending=False)
+
+    assert button.options["text"] == "Generate Query"
+    assert "Ask a question" in hint.options["text"]
 
 
 @pytest.mark.parametrize(
@@ -738,6 +766,9 @@ def test_gui_new_conversation_replaces_active_context_without_display():
         def delete(self, *_args):
             pass
 
+        def grid_remove(self):
+            pass
+
     old_conversation = create_conversation()
     old_conversation.append_user_turn("Show CSE students.")
     old_conversation.record_assistant_clarification(
@@ -753,10 +784,14 @@ def test_gui_new_conversation_replaces_active_context_without_display():
     )
     assert old_conversation.active_query_context == "Show CSE students."
     app = SimpleNamespace(
+        _PENDING_STATUSES=TextToSQLDesktopApp._PENDING_STATUSES,
         _busy=False,
         conversation=old_conversation,
         chat_display=_Widget(),
         message_entry=_Widget(),
+        clarification_panel=_Widget(),
+        _clear_message_text=lambda: None,
+        _update_input_mode=lambda **_kwargs: None,
         _clear_results=lambda: None,
         _append_message=lambda *_args: None,
         _update_conversation_label=lambda: None,
@@ -816,7 +851,7 @@ def test_gui_message_submission_and_result_display_when_display_is_available():
     except tkinter.TclError as error:
         pytest.skip(f"Graphical display is unavailable: {error}")
     try:
-        app.message_entry.insert(0, "Show students.")
+        app.message_entry.insert("1.0", "Show students.")
         app.submit_message()
         assert completed.wait(timeout=3)
         deadline = time.monotonic() + 3

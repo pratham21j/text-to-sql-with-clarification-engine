@@ -185,6 +185,16 @@
 - [x] Run `python -m pip check` (no broken requirements).
 - [x] Run `git diff --check` and verify database counts, backup preservation, foreign keys, value ranges, idempotency, and a read-only application query.
 
+## Phase 14: Professional Dark Desktop UI
+
+- [x] Inspect the existing CustomTkinter layout, event handlers, and GUI tests before editing.
+- [x] Apply a dark visual theme with a clear project header, conversation panel, multiline query composer, and SQL/results cards.
+- [x] Make clarification prompts and answer submission explicit while preserving the conversation/backend workflow.
+- [x] Style SQL preview, result table, row striping, and scrolling for dark-mode readability; retain CSV export and conversation reset.
+- [x] Update desktop GUI tests and README interaction guidance.
+- [x] Run the complete test suite (191 passed, 1 skipped), desktop import, compilation, and `git diff --check` without live AI calls or project `.env` access.
+- [x] Leave executable packaging unchanged.
+
 ## Rules
 
 - Work through the phases in order.
